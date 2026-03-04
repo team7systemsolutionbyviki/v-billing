@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v-billing</title>
+    <style>
+        :root {
+            /* Light Theme */
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --primary-light: #e8f5e9;
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --border: #dee2e6;
+            --success: #198754;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme */
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border: #333333;
+            --primary-light: #144418;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        /* Utilities */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .justify-center {
+            justify-content: center;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .gap-4 {
+            gap: 1rem;
+        }
+
+        .p-2 {
+            padding: 0.5rem;
+        }
+
+        .p-4 {
+            padding: 1rem;
+        }
+
+        .m-2 {
+            margin: 0.5rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .text-xl {
+            font-size: 1.25rem;
+        }
+
+        .text-2xl {
+            font-size: 1.5rem;
+        }
+
+        .text-xs {
+            font-size: 0.75rem;
+        }
+
+        .text-primary {
+            color: var(--primary);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        .text-truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #floating-wa {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            /* Positioned to the left side as requested in a previous conversation */
+            width: 50px;
+            height: 50px;
+            background-color: #25d366;
+            color: white;
+            border-radius: 50px;
+            text-align: center;
+            font-size: 30px;
+            box-shadow: 2px 2px 3px #999;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        #floating-wa:hover {
+            transform: scale(1.1);
+            box-shadow: 2px 2px 8px #999;
+        }
+
+        /* Components */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+            background-color: var(--border);
+            color: var(--text-main);
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            background: var(--bg-body);
+            color: var(--text-main);
+            width: 100%;
+        }
+
+        .input:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        .card {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        /* Layout */
+        #app-root {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 250px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: transform 0.3s;
+            z-index: 50;
+        }
+
+        .nav-item {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-right: 3px solid var(--primary);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Main Content */
+        #main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Mobile Responsive */
+        .mobile-menu-btn {
+            display: none;
+            padding: 0.5rem;
+            font-size: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-main);
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                position: fixed;
+                transform: translateX(-100%);
+                width: 80%;
+            }
+
+            #sidebar.open {
+                transform: translateX(0);
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .overlay.open {
+                display: block;
+            }
+        }
+
+        /* Specific Views */
+        /* Login */
+        #login-view {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: var(--bg-body);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+        }
+
+        /* POS Grid */
+        .pos-layout {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr;
+            gap: 1rem;
+            height: calc(100vh - 150px);
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.75rem;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            align-content: start;
+        }
+
+        .product-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            /* Uniform height */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .product-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 0.25rem;
+            background: #f8f9fa;
+        }
+
+        .stock-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .bg-danger {
+            background-color: var(--danger) !important;
+        }
+
+        .cart-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            border-left: 1px solid var(--border);
+            padding-left: 1rem;
+        }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed var(--border);
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .pos-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+
+            .cart-panel {
+                border-left: none;
+                border-top: 1px solid var(--border);
+                padding-top: 1rem;
+            }
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+        }
+
+        th,
+        td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        th {
+            background: var(--bg-body);
+            font-weight: 600;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 60;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+        }
+
+        .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        /* Print Override */
+        @media print {
+
+            #sidebar,
+            .no-print,
+            .modal,
+            #login-view,
+            .mobile-menu-btn,
+            header,
+            #app-root {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+                color: black;
+            }
+
+            #receipt-print-area {
+                display: block !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+            }
+        }
+
+        #receipt-print-area {
+            display: none;
+            width: 300px;
+            margin: 0 auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .receipt-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed black;
+            margin: 8px 0;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Login View -->
+    <div id="login-view">
+        <div class="card login-card">
+            <div class="text-center" style="margin-bottom: 2rem;">
+                <h1 class="text-2xl font-bold text-primary">v-billing</h1>
+                <p class="text-muted">Shop Billing System</p>
+                <div id="login-msg" class="text-muted text-xs">Default PIN: 1234</div>
+            </div>
+            <form id="login-form" class="flex flex-col gap-4">
+                <div>
+                    <label>Select User</label>
+                    <div class="flex gap-2">
+                        <select id="login-user-select" class="input"></select>
+                        <input id="login-user-manual" class="input hidden" placeholder="Enter User ID">
+                        <button type="button" class="btn" onclick="App.auth.toggleManualLogin()">🖊️</button>
+                    </div>
+                </div>
+                <div>
+                    <label>PIN</label>
+                    <input type="password" id="login-pin" class="input" placeholder="Enter 4-digit PIN" maxlength="4"
+                        required>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Login</button>
+                <div id="login-error" class="text-danger text-center hidden">Invalid PIN</div>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-root">
+        <div id="overlay" class="overlay"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="text-xl font-bold text-primary">v-billing</h2>
+            </div>
+            <nav class="flex flex-col flex-1 p-2 gap-2">
+                <a class="nav-item" data-view="dashboard" onclick="App.router.navigate('dashboard')">
+                    <span>📊</span> Dashboard
+                </a>
+                <a class="nav-item" data-view="pos" onclick="App.router.navigate('pos')">
+                    <span>🛒</span> Billing / POS
+                </a>
+                <a class="nav-item" data-view="products" onclick="App.router.navigate('products')">
+                    <span>🧴</span> Products
+                </a>
+                <a class="nav-item" data-view="categories" onclick="App.router.navigate('categories')">
+                    <span>🏷️</span> Categories
+                </a>
+                <a class="nav-item" data-view="customers" onclick="App.router.navigate('customers')">
+                    <span>👥</span> Customers
+                </a>
+                <a class="nav-item" data-view="reports" onclick="App.router.navigate('reports')">
+                    <span>📈</span> Reports
+                </a>
+                <div style="flex:1"></div>
+                <a class="nav-item" data-view="settings" onclick="App.router.navigate('settings')">
+                    <span>⚙️</span> Settings
+                </a>
+                <a class="nav-item text-danger" onclick="App.auth.logout()">
+                    <span>🚪</span> Logout
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="main">
+            <!-- Developer Header -->
+            <div class="text-center p-2 mb-2 text-xs"
+                style="background-color: var(--primary-light, #e0f2fe); color: var(--primary, #0284c7); border-radius: 4px; border: 1px solid var(--primary, #0284c7);">
+                This app developed by <strong>Vignesh</strong> | Contact: <a href="tel:9360039283" class="font-bold"
+                    style="color: var(--primary, #0284c7); text-decoration: underline;">9360039283</a>
+            </div>
+
+            <header class="flex items-center justify-between mb-4">
+                <button class="mobile-menu-btn" onclick="App.ui.toggleSidebar()">☰</button>
+                <h2 id="page-title" class="text-xl font-bold">Dashboard</h2>
+                <div class="flex gap-2">
+                    <button class="btn" onclick="App.ui.toggleTheme()">🌙/☀️</button>
+                    <span id="user-display" class="p-2 font-bold"></span>
+                </div>
+            </header>
+
+            <!-- Views -->
+            <div id="view-dashboard" class="view hidden">
+                <div class="grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="card text-center">
+                        <h3 class="text-muted">Today's Sales</h3>
+                        <p class="text-2xl font-bold text-success" id="dash-today-sales">₹0.00</p>
+                    </div>
+                    <div class="card text-center">
+                        <h3 class="text-muted">Month Sales</h3>
+                        <p class="text-2xl font-bold text-primary" id="dash-month-sales">₹0.00</p>
+                    </div>
+                    <div class="card text-center">
+                        <h3 class="text-muted">Total Products</h3>
+                        <p class="text-2xl font-bold" id="dash-products">0</p>
+                    </div>
+                    <div class="card text-center">
+                        <h3 class="text-muted">Low Stock</h3>
+                        <p class="text-2xl font-bold text-danger" id="dash-low-stock">0</p>
+                    </div>
+                </div>
+                <div class="card mt-4 p-4" style="margin-top: 1rem;">
+                    <h3>Sales Chart (Last 7 Days)</h3>
+                    <div id="dashboard-chart"
+                        style="height: 200px; display: flex; align-items: flex-end; gap: 10px; padding-top: 20px;">
+                        <!-- Canvas/Bars generated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-pos" class="view hidden">
+                <div class="pos-layout">
+                    <!-- Left: Products -->
+                    <div class="flex flex-col gap-2">
+                        <div class="flex gap-2">
+                            <input type="text" id="pos-search" class="input"
+                                placeholder="Search product or scan barcode..." onkeyup="App.pos.renderProducts()">
+                            <select id="pos-category-filter" class="input" style="width: 150px;"
+                                onchange="App.pos.filterAndRender()"></select>
+                        </div>
+                        <div id="pos-product-list" class="product-grid"></div>
+                    </div>
+                    <!-- Right: Cart -->
+                    <div class="card cart-panel">
+                        <div class="cart-items" id="pos-cart-items">
+                            <div class="text-center text-muted p-4">Cart is empty</div>
+                        </div>
+                        <div class="cart-summary flex flex-col gap-2">
+                            <div class="flex justify-between">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal">0.00</span>
+                            </div>
+                            <div class="flex justify-between text-muted" style="font-size: 0.9em;">
+                                <span>Tax</span>
+                                <span id="cart-tax">0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-xl">
+                                <span>Total</span>
+                                <span id="cart-total">0.00</span>
+                            </div>
+                            <div class="flex gap-2" style="margin-top: 5px;">
+                                <input type="text" id="cart-customer-name" class="input" placeholder="Name">
+                                <input type="text" id="cart-customer-whatsapp" class="input" placeholder="WhatsApp No.">
+                            </div>
+                            <button class="btn btn-success w-full py-2"
+                                onclick="App.pos.showCheckout()">Checkout</button>
+                            <button class="btn w-full py-2" style="background-color: #25D366; color: white;"
+                                onclick="App.pos.sendWhatsAppBill()">WhatsApp Bill</button>
+                            <button class="btn btn-danger w-full" onclick="App.pos.clearCart()">Clear Cart</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-products" class="view hidden">
+                <div class="flex justify-between mb-4">
+                    <input type="text" id="prod-search" class="input" style="max-width: 300px;"
+                        placeholder="Search products..." onkeyup="App.products.renderTable()">
+                    <button class="btn btn-primary" onclick="App.products.openModal()">+ Add Product</button>
+                </div>
+                <div class="table-container">
+                    <table id="products-table">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Expiry</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-categories" class="view hidden">
+                <button class="btn btn-primary mb-4" onclick="App.categories.openModal()">+ Add Category</button>
+                <div class="table-container">
+                    <table id="categories-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Color</th>
+                                <th>Count</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-customers" class="view hidden">
+                <div class="flex justify-between mb-4">
+                    <div class="flex gap-2" style="flex:1; max-width:400px">
+                        <input type="text" id="cust-search" class="input" placeholder="Search Name, Phone or ID..."
+                            onkeyup="App.customers.renderTable()">
+                    </div>
+                    <button class="btn btn-primary" onclick="App.customers.openModal()">+ Add
+                        Customer</button>
+                </div>
+                <div class="table-container">
+                    <table id="customers-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Mobile</th>
+                                <th>Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-reports" class="view hidden">
+                <div class="flex gap-2 mb-4" style="max-width:400px">
+                    <input type="text" id="report-search-id" class="input flex-1"
+                        placeholder="Search Invoice No or ID..." onkeyup="App.reports.searchById(this.value)">
+                </div>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <button class="btn btn-primary" onclick="App.reports.render('daily')">Daily Sales</button>
+                    <button class="btn" onclick="App.reports.render('monthly')">Monthly Sales</button>
+                    <button class="btn" onclick="App.reports.render('item')">Item Sales</button>
+                    <button class="btn" onclick="App.reports.render('customer')">Customer Sales</button>
+                    <button class="btn" onclick="App.reports.render('stock')">Stock Value</button>
+                    <button class="btn" onclick="App.reports.render('profit')">Profit / Loss</button>
+                    <button class="btn btn-warning" onclick="App.reports.render('debt')"
+                        style="background-color: #ff9800; color: white;">Debt & Credit</button>
+                    <button class="btn btn-danger" onclick="App.reports.render('lowstock')">Low Stock</button>
+                </div>
+                <div id="report-content" class="card p-4">
+                    <p>Select a report type above.</p>
+                </div>
+            </div>
+
+            <div id="view-settings" class="view hidden">
+                <div class="card p-4 flex flex-col gap-4" style="max-width: 600px;">
+                    <h3 class="font-bold">Shop Details</h3>
+                    <div class="flex flex-col gap-2 mb-2">
+                        <label>Shop Logo</label>
+                        <input type="file" id="set-logo-input" class="input" accept="image/*">
+                        <img id="set-logo-preview" style="max-height: 50px; object-fit: contain; display: none;">
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="set-show-logo" style="width: auto;">
+                            <label for="set-show-logo">Show Logo in Receipt</label>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="set-show-gst" style="width: auto;">
+                            <label for="set-show-gst">Show GST on Receipt</label>
+                        </div>
+                    </div>
+                    <!-- UPI QR Section -->
+                    <div class="flex flex-col gap-2 mb-2">
+                        <label>UPI QR Code</label>
+                        <input type="file" id="set-upi-input" class="input" accept="image/*">
+                        <img id="set-upi-preview" style="max-height: 100px; object-fit: contain; display: none;">
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="set-show-delivery" style="width: auto;">
+                            <label for="set-show-delivery">Show Delivery Options at Checkout</label>
+                        </div>
+                    </div>
+                    <input id="set-shop-name" class="input" placeholder="Shop Name">
+                    <input id="set-shop-addr" class="input" placeholder="Address">
+                    <input id="set-shop-phone" class="input" placeholder="Phone">
+                    <input id="set-shop-gstin" class="input" placeholder="GSTIN (Optional)">
+                    <input id="set-gst-default" class="input" type="number" placeholder="Default GST %">
+                    <input id="set-footer" class="input" placeholder="Receipt Footer Message">
+                    <button class="btn btn-primary" onclick="App.settings.save()">Save Settings</button>
+
+                    <hr class="border-t my-4">
+                    <h3 class="font-bold">Data Management</h3>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="btn btn-success" onclick="App.settings.backup()">Full Backup (JSON)</button>
+                        <button class="btn btn-primary" onclick="App.settings.exportCSV()">Export Products
+                            (Excel/CSV)</button>
+                        <button class="btn btn-danger" onclick="document.getElementById('restore-file').click()">Restore
+                            / Import Data</button>
+                        <input type="file" id="restore-file" class="hidden" accept=".json,.csv"
+                            onchange="App.settings.restore(this)">
+                    </div>
+                    <div class="text-xs text-muted">
+                        Version 1.2 (Search + UPI)
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-weight" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Select Weight</h3><span class="cursor-pointer font-bold"
+                    onclick="App.router.hideModal('modal-weight')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-4 text-center">
+                <input type="hidden" id="weight-prod-id">
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <button class="btn input"
+                        onclick="document.getElementById('weight-grams').value = 100">100g</button>
+                    <button class="btn input"
+                        onclick="document.getElementById('weight-grams').value = 200">200g</button>
+                    <button class="btn input"
+                        onclick="document.getElementById('weight-grams').value = 250">250g</button>
+                    <button class="btn input"
+                        onclick="document.getElementById('weight-grams').value = 500">500g</button>
+                    <button class="btn input" onclick="document.getElementById('weight-grams').value = 1000">1
+                        Kg</button>
+                </div>
+                <div class="flex gap-2 items-center justify-center">
+                    <label class="text-xs text-muted">Or enter exact grams:</label>
+                    <input id="weight-grams" type="number" class="input text-center font-bold" placeholder="Grams"
+                        style="width: 100px; font-size: 1.2rem;">
+                    <span class="text-xs">g</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="App.router.hideModal('modal-weight')">Cancel</button>
+                <button class="btn btn-primary" onclick="App.pos.confirmWeight()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-product" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Product Details</h3><span class="cursor-pointer font-bold"
+                    onclick="App.router.hideModal('modal-product')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <input type="hidden" id="prod-id">
+                <div class="flex gap-2">
+                    <input id="prod-name" class="input" placeholder="Product Name *" required>
+                    <input id="prod-brand" class="input" placeholder="Brand">
+                </div>
+                <div class="flex gap-2">
+                    <select id="prod-cat" class="input flex-1"></select>
+                    <select id="prod-unit" class="input flex-1">
+                        <option value="pcs">Pieces (pcs)</option>
+                        <option value="kg">Weighable (kg/g)</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <input id="prod-barcode" class="input" placeholder="Barcode">
+                </div>
+                <div class="flex gap-2">
+                    <input id="prod-cost" type="number" class="input" placeholder="Cost Price">
+                    <input id="prod-price" type="number" class="input" placeholder="Selling Price *" required>
+                </div>
+                <div class="flex gap-2">
+                    <input id="prod-gst" type="number" class="input" placeholder="GST %">
+                    <input id="prod-stock" type="number" class="input" placeholder="Stock Qty">
+                </div>
+                <input id="prod-expiry" type="date" class="input" placeholder="Expiry Date">
+                <div>
+                    <label>Image</label>
+                    <input type="file" id="prod-img-input" class="input" accept="image/*">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="App.router.hideModal('modal-product')">Cancel</button>
+                <button class="btn btn-primary" onclick="App.products.save()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-category" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Category</h3><span class="cursor-pointer" onclick="App.router.hideModal('modal-category')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <input type="hidden" id="cat-id">
+                <input id="cat-name" class="input" placeholder="Category Name">
+                <input id="cat-color" type="color" class="input" style="height: 40px;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="App.categories.save()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-customer" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Customer</h3><span class="cursor-pointer" onclick="App.router.hideModal('modal-customer')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <input type="hidden" id="cust-id">
+                <input id="cust-name" class="input" placeholder="Name">
+                <input id="cust-phone" class="input" placeholder="Mobile">
+                <input id="cust-addr" class="input" placeholder="Address">
+                <input id="cust-gstin" class="input" placeholder="GSTIN (Optional)">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="App.customers.save()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debt & Credit Modals -->
+    <div id="modal-debt" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Add Debt for <span id="debt-cust-name" class="text-danger"></span></h3><span class="cursor-pointer"
+                    onclick="App.router.hideModal('modal-debt')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <input type="hidden" id="debt-cust-id">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-muted">Amount to Add (₹)</label>
+                    <input id="debt-amount" type="number" class="input" placeholder="0.00" onfocus="this.select()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="App.router.hideModal('modal-debt')">Cancel</button>
+                <button class="btn btn-danger" onclick="App.customers.confirmDebt()">Add Debt</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-credit" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Receive Payment from <span id="credit-cust-name" class="text-success"></span></h3><span
+                    class="cursor-pointer" onclick="App.router.hideModal('modal-credit')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <input type="hidden" id="credit-cust-id">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-muted">Amount Received (₹)</label>
+                    <input id="credit-amount" type="number" class="input" placeholder="0.00" onfocus="this.select()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="App.router.hideModal('modal-credit')">Cancel</button>
+                <button class="btn btn-success" onclick="App.customers.confirmCredit()">Confirm Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-checkout" class="modal">
+        <div class="modal-content" style="max-width: 500px">
+            <div class="modal-header">
+                <h3>Payment</h3><span class="cursor-pointer" onclick="App.router.hideModal('modal-checkout')">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-4 text-center">
+                <h2 class="text-2xl font-bold" id="pay-total-display">0.00</h2>
+
+                <!-- Order Type Selection -->
+                <div id="checkout-order-type-container" style="display: none;">
+                    <div class="flex justify-center gap-2 mb-2">
+                        <button id="btn-order-takein" class="btn btn-primary"
+                            onclick="App.pos.setOrderType('Self Pickup')">🍽️
+                            Self Pickup</button>
+                        <button id="btn-order-delivery" class="btn" onclick="App.pos.setOrderType('Courier')">🛵
+                            Courier</button>
+                    </div>
+                </div>
+
+                <!-- QR Display -->
+                <div id="pay-upi-qr-container" class="hidden flex justify-center p-2 mb-2"
+                    style="background:#f0f0f0; border-radius:8px;">
+                    <div class="text-center">
+                        <p class="text-xs text-muted mb-1">Scan to Pay</p>
+                        <img id="pay-upi-qr-img"
+                            style="width:150px; height:150px; object-fit:contain; background:white;">
+                    </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="btn input" onclick="App.pos.setPayMode('Cash')">💵 Cash</button>
+                    <button class="btn input" onclick="App.pos.setPayMode('UPI')">📱 UPI</button>
+                </div>
+                <select id="pay-mode" class="input text-center" onchange="App.pos.setPayMode(this.value)">
+                    <option>Cash</option>
+                    <option>UPI</option>
+                </select>
+                <div class="flex gap-2">
+                    <select id="pay-discount-type" class="input" style="width: 70px;">
+                        <option value="amount">₹</option>
+                        <option value="percent">%</option>
+                    </select>
+                    <input id="pay-discount-val" type="number" class="input" placeholder="Discount"
+                        oninput="App.pos.applyBillDiscount()">
+                </div>
+                <!-- Amount Paid -->
+                <div class="flex gap-2 items-center" style="margin-top: 10px;">
+                    <label class="font-bold flex-1 text-left">Amount Paid:</label>
+                    <input id="pay-amount-paid" type="number" class="input flex-2" placeholder="0.00"
+                        oninput="App.pos.calculateChange()">
+                </div>
+                <div class="flex justify-between items-center text-lg mt-2" id="pay-change-container"
+                    style="display: none;">
+                    <span id="pay-change-label" class="font-bold">Change:</span>
+                    <span id="pay-change-val" class="font-bold">0.00</span>
+                </div>
+            </div>
+            <div class="modal-footer justify-center">
+                <button class="btn btn-success w-full py-2 text-xl" onclick="App.pos.confirmCheckout()">Complete
+                    Sale</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Template (Hidden) -->
+    <div id="receipt-print-area"></div>
+
+    <!-- Floating WhatsApp -->
+    <a href="https://wa.me/919360039283" target="_blank" id="floating-wa" title="Contact Us on WhatsApp">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path
+                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+    </a>
+
+    <script>
+        // Global Error Handler
+        window.onerror = function (msg, url, line, col, error) {
+            alert("Error: " + msg + "\nLine: " + line);
+            console.error(error);
+            return false;
+        };
+
+        const Utils = {
+            id: () => '_' + Math.random().toString(36).substr(2, 9),
+            formatCurrency: (num) => '₹' + parseFloat(num || 0).toFixed(2),
+            dateStr: (d = new Date()) => d.toISOString().split('T')[0],
+            readFile: (file) => new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            })
+        };
+
+        const Store = {
+            get: (key, def) => {
+                try {
+                    const val = localStorage.getItem('cosmatic_' + key);
+                    if (val === null || val === undefined) return def;
+                    return JSON.parse(val);
+                } catch (e) {
+                    console.error("Store Error", e);
+                    return def;
+                }
+            },
+            set: (key, val) => {
+                try {
+                    localStorage.setItem('cosmatic_' + key, JSON.stringify(val));
+                } catch (e) {
+                    alert("Storage Error: " + e.message);
+                }
+            },
+            init: () => {
+                const users = Store.get('users', []);
+                // Ensure Default Users Exist
+                let modified = false;
+                if (!users.find(u => u.id === 'viki')) {
+                    users.push({ id: 'viki', name: 'VIKI', role: 'admin', pin: '1101', is_super: true });
+                    modified = true;
+                }
+                if (!users.find(u => u.id === 'admin')) {
+                    users.push({ id: 'admin', name: 'Administrator', role: 'admin', pin: '1234' });
+                    modified = true;
+                }
+                if (!users.find(u => u.id === 'staff1')) {
+                    users.push({ id: 'staff1', name: 'Staff Member', role: 'staff', pin: '0000' });
+                    modified = true;
+                }
+                if (modified) Store.set('users', users);
+
+                // Initialize Defaults if missing
+                if (Store.get('shop_config', null) === null) {
+                    Store.set('shop_config', { name: 'v-billing', address: 'City Center', phone: '9876543210', gst_default: 18, footer: 'Thank you for visiting!' });
+                }
+                if (Store.get('categories', []).length === 0) {
+                    Store.set('categories', [{ id: 'c1', name: 'Lipstick', color: '#ffcccb' }, { id: 'c2', name: 'Skincare', color: '#d1e7dd' }, { id: 'c3', name: 'Dry Fruits & Nuts', color: '#fcd34d' }]);
+                }
+
+                // Ensure arrays exist
+                if (!localStorage.getItem('cosmatic_products')) Store.set('products', []);
+                if (!localStorage.getItem('cosmatic_customers')) Store.set('customers', []);
+                if (!localStorage.getItem('cosmatic_invoices')) Store.set('invoices', []);
+            }
+        };
+
+        const App = {
+            user: null,
+
+            init: () => {
+                try {
+                    Store.init();
+                    App.auth.check();
+                    App.ui.init();
+                } catch (e) {
+                    alert("Init Error: " + e.message);
+                }
+            },
+
+            auth: {
+                check: () => {
+                    const session = sessionStorage.getItem('cosmatic_session');
+                    if (session) {
+                        try {
+                            App.user = JSON.parse(session);
+                            App.router.init();
+                        } catch (e) {
+                            sessionStorage.removeItem('cosmatic_session');
+                            App.auth.renderLogin();
+                        }
+                    } else {
+                        App.auth.renderLogin();
+                    }
+                },
+                renderLogin: () => {
+                    document.getElementById('login-view').classList.remove('hidden');
+                    let users = Store.get('users', []);
+                    const sel = document.getElementById('login-user-select');
+
+                    if (users.length === 0) {
+                        // Emergency Re-seed if empty
+                        Store.init();
+                        users = Store.get('users', []);
+                        if (users.length === 0) {
+                            sel.innerHTML = '<option>Error: No Users Found</option>';
+                            return;
+                        }
+                    }
+                    if (sel) sel.innerHTML = users.filter(u => !u.is_super).map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join('');
+                },
+                toggleManualLogin: () => {
+                    document.getElementById('login-user-select').classList.toggle('hidden');
+                    document.getElementById('login-user-manual').classList.toggle('hidden');
+                },
+                login: (e) => {
+                    e.preventDefault();
+                    let userId = document.getElementById('login-user-select').value;
+                    // Check manual input if visible
+                    if (!document.getElementById('login-user-manual').classList.contains('hidden')) {
+                        userId = document.getElementById('login-user-manual').value.toLowerCase();
+                    }
+                    const pin = document.getElementById('login-pin').value;
+                    const users = Store.get('users', []);
+                    const user = users.find(u => u.id === userId && u.pin === pin);
+
+                    if (user) {
+                        sessionStorage.setItem('cosmatic_session', JSON.stringify(user));
+                        App.user = user;
+                        document.getElementById('login-view').classList.add('hidden');
+                        document.getElementById('login-form').reset();
+                        App.router.init();
+
+                        // Update Sidebar for Role
+                        const isAdmin = user.role === 'admin';
+                        const adminItems = document.querySelectorAll('.nav-item[data-view="dashboard"], .nav-item[data-view="categories"], .nav-item[data-view="reports"], .nav-item[data-view="settings"]');
+                        adminItems.forEach(el => el.style.display = isAdmin ? 'flex' : 'none');
+                    } else {
+                        document.getElementById('login-error').classList.remove('hidden');
+                    }
+                },
+                logout: () => {
+                    if (confirm("Logout now? A backup will be downloaded automatically.")) {
+                        App.settings.backup();
+                        setTimeout(() => {
+                            sessionStorage.removeItem('cosmatic_session');
+                            location.reload();
+                        }, 1000);
+                    }
+                }
+            },
+
+            router: {
+                navigate: (viewName) => {
+                    if (!App.user) return;
+
+                    const restricted = ['dashboard', 'categories', 'reports', 'settings'];
+                    if (App.user.role !== 'admin' && restricted.includes(viewName)) {
+                        alert("Access Denied: Admin only.");
+                        return;
+                    }
+
+                    document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+                    const target = document.getElementById(`view-${viewName}`);
+                    if (target) target.classList.remove('hidden');
+
+                    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                    document.querySelector(`.nav-item[data-view="${viewName}"]`)?.classList.add('active');
+
+                    const titleEl = document.getElementById('page-title');
+                    if (titleEl) titleEl.textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+
+                    // Trigger load events
+                    if (viewName === 'products') App.products.renderTable();
+                    if (viewName === 'categories') App.categories.renderTable();
+                    if (viewName === 'customers') App.customers.renderTable();
+                    if (viewName === 'settings') App.settings.load();
+                    if (viewName === 'pos') App.pos.renderProducts();
+                    if (viewName === 'dashboard') App.dashboard.refresh();
+
+                    // Mobile sidebar close
+                    const side = document.getElementById('sidebar');
+                    const over = document.getElementById('overlay');
+                    if (side) side.classList.remove('open');
+                    if (over) over.classList.remove('open');
+                },
+                init: () => {
+                    document.getElementById('user-display').textContent = App.user.name;
+                    // Redirect based on role
+                    if (App.user.role === 'admin') App.router.navigate('dashboard');
+                    else App.router.navigate('pos');
+
+                    // Ensure sidebar visibility persists on reload (if session active)
+                    const isAdmin = App.user.role === 'admin';
+                    const adminItems = document.querySelectorAll('.nav-item[data-view="dashboard"], .nav-item[data-view="categories"], .nav-item[data-view="reports"], .nav-item[data-view="settings"]');
+                    adminItems.forEach(el => el.style.display = isAdmin ? 'flex' : 'none');
+                },
+                showModal: (id) => document.getElementById(id).classList.add('open'),
+                hideModal: (id) => document.getElementById(id).classList.remove('open')
+            },
+
+            ui: {
+                init: () => {
+                    const loginForm = document.getElementById('login-form');
+                    if (loginForm) loginForm.onsubmit = App.auth.login;
+
+                    const imgInput = document.getElementById('prod-img-input');
+                    if (imgInput) {
+                        imgInput.addEventListener('change', async (e) => {
+                            if (e.target.files[0]) {
+                                try {
+                                    App.products.tempImage = await Utils.readFile(e.target.files[0]);
+                                } catch (err) { console.error(err); }
+                            }
+                        });
+                    }
+                },
+                toggleSidebar: () => {
+                    document.getElementById('sidebar').classList.toggle('open');
+                    document.getElementById('overlay').classList.toggle('open');
+                },
+                toggleTheme: () => {
+                    const body = document.body;
+                    if (body.getAttribute('data-theme') === 'dark') body.removeAttribute('data-theme');
+                    else body.setAttribute('data-theme', 'dark');
+                }
+            },
+
+            dashboard: {
+                refresh: () => {
+                    const invoices = Store.get('invoices', []);
+                    const products = Store.get('products', []);
+                    const today = Utils.dateStr();
+                    const thisMonth = today.substring(0, 7);
+
+                    const daily = invoices.filter(i => i.date.startsWith(today)).reduce((sum, i) => sum + (i.total || 0), 0);
+                    const monthly = invoices.filter(i => i.date.startsWith(thisMonth)).reduce((sum, i) => sum + (i.total || 0), 0);
+                    const lowStock = products.filter(p => p.stock < 5).length;
+
+                    document.getElementById('dash-today-sales').textContent = Utils.formatCurrency(daily);
+                    document.getElementById('dash-month-sales').textContent = Utils.formatCurrency(monthly);
+                    document.getElementById('dash-products').textContent = products.length;
+                    document.getElementById('dash-low-stock').textContent = lowStock;
+
+                    // Chart
+                    const chart = document.getElementById('dashboard-chart');
+                    if (chart) {
+                        chart.innerHTML = '';
+                        const last7Days = [...Array(7)].map((_, i) => {
+                            const d = new Date(); d.setDate(d.getDate() - i); return d.toISOString().split('T')[0];
+                        }).reverse();
+
+                        const vals = last7Days.map(d => invoices.filter(i => i.date.startsWith(d)).reduce((s, x) => s + (x.total || 0), 0));
+                        const maxVal = Math.max(...vals, 100);
+
+                        last7Days.forEach((d, i) => {
+                            const val = vals[i];
+                            const h = (val / maxVal) * 100;
+                            chart.innerHTML += `<div style="flex:1; background:var(--primary); height:${Math.max(h, 1)}%; border-radius:4px 4px 0 0; position:relative;" title="${d}: ${val}"></div>`;
+                        });
+                    }
+                }
+            },
+
+            products: {
+                tempImage: null,
+                renderTable: () => {
+                    const products = Store.get('products', []);
+                    const cats = Store.get('categories', []);
+                    const searchInput = document.getElementById('prod-search');
+                    const search = searchInput ? searchInput.value.toLowerCase() : '';
+                    const tbody = document.querySelector('#products-table tbody');
+                    if (!tbody) return;
+
+                    const html = products.filter(p => p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)))
+                        .map(p => {
+                            const cat = cats.find(c => c.id === p.category_id)?.name || '-';
+
+                            // Check expiry
+                            let expiryDisplay = p.expiry || '-';
+                            let isExpired = false;
+                            if (p.expiry) {
+                                const todayMs = new Date().setHours(0, 0, 0, 0);
+                                const expMs = new Date(p.expiry).setHours(0, 0, 0, 0);
+                                const diffDays = Math.round((expMs - todayMs) / (1000 * 60 * 60 * 24));
+
+                                if (diffDays < 0) {
+                                    isExpired = true;
+                                    expiryDisplay = `<div class="text-danger font-bold">⚠️ ${p.expiry}</div><div class="text-xs text-danger">Expired ${Math.abs(diffDays)} days ago</div>`;
+                                } else if (diffDays === 0) {
+                                    expiryDisplay = `<div>${p.expiry}</div><div class="text-xs text-warning font-bold">Expires Today</div>`;
+                                } else {
+                                    expiryDisplay = `<div>${p.expiry}</div><div class="text-xs text-muted">In ${diffDays} days</div>`;
+                                }
+                            }
+
+                            return `
+                                <tr style="${isExpired ? 'background-color: var(--danger-light, #fee2e2);' : ''}">
+                                    <td><img src="${p.image || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;background:#f8f9fa" onerror="this.src='https://via.placeholder.com/40'"></td>
+                                    <td><div class="text-truncate" style="max-width: 200px;" title="${p.name}">${p.name}</div><small class="text-muted">${p.brand || ''}</small></td>
+                                <td>${cat}</td>
+                                <td>${Utils.formatCurrency(p.price)}</td>
+                                <td class="${p.stock < 5 ? 'text-danger font-bold' : ''}">${p.stock}</td>
+                                <td>${expiryDisplay}</td>
+                                <td>
+                                    <button class="btn btn-sm" onclick="App.products.edit('${p.id}')">✏️</button>
+                                    <button class="btn btn-sm text-danger" onclick="App.products.delete('${p.id}')">🗑️</button>
+                                </td>
+                            </tr>
+                        `;
+                        }).join('');
+                    tbody.innerHTML = html;
+                },
+                openModal: () => {
+                    document.getElementById('prod-id').value = '';
+                    document.getElementById('prod-name').value = '';
+                    document.getElementById('prod-brand').value = '';
+                    document.getElementById('prod-barcode').value = '';
+                    document.getElementById('prod-cost').value = '';
+                    document.getElementById('prod-price').value = '';
+                    document.getElementById('prod-gst').value = '';
+                    document.getElementById('prod-stock').value = '';
+                    document.getElementById('prod-expiry').value = '';
+                    document.getElementById('prod-img-input').value = '';
+                    document.getElementById('prod-unit').value = 'pcs';
+                    App.products.tempImage = null;
+
+                    const cats = Store.get('categories', []);
+                    document.getElementById('prod-cat').innerHTML = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    App.router.showModal('modal-product');
+                },
+                save: () => {
+                    const products = Store.get('products', []);
+                    const id = document.getElementById('prod-id').value || Utils.id();
+                    const isNew = !products.find(p => p.id === id);
+
+                    const name = document.getElementById('prod-name').value;
+                    const price = parseFloat(document.getElementById('prod-price').value);
+
+                    if (!name || isNaN(price)) {
+                        alert('Name and Selling Price are required');
+                        return;
+                    }
+
+                    const prod = {
+                        id,
+                        name,
+                        brand: document.getElementById('prod-brand').value,
+                        category_id: document.getElementById('prod-cat').value,
+                        unit: document.getElementById('prod-unit').value || 'pcs',
+                        barcode: document.getElementById('prod-barcode').value,
+                        cost: parseFloat(document.getElementById('prod-cost').value) || 0,
+                        price,
+                        gst_percent: parseFloat(document.getElementById('prod-gst').value) || 0,
+                        stock: parseInt(document.getElementById('prod-stock').value) || 0,
+                        expiry: document.getElementById('prod-expiry').value,
+                        image: App.products.tempImage || (isNew ? '' : (products.find(p => p.id === id)?.image || ''))
+                    };
+
+                    if (isNew) products.push(prod);
+                    else {
+                        const idx = products.findIndex(p => p.id === id);
+                        if (idx > -1) products[idx] = prod;
+                    }
+
+                    Store.set('products', products);
+                    App.router.hideModal('modal-product');
+                    App.products.renderTable();
+                },
+                edit: (id) => {
+                    const p = Store.get('products', []).find(x => x.id === id);
+                    if (!p) return;
+                    App.products.openModal(); // Reset first
+                    document.getElementById('prod-id').value = p.id;
+                    document.getElementById('prod-name').value = p.name;
+                    document.getElementById('prod-brand').value = p.brand;
+                    document.getElementById('prod-cat').value = p.category_id;
+                    document.getElementById('prod-unit').value = p.unit || 'pcs';
+                    document.getElementById('prod-barcode').value = p.barcode;
+                    document.getElementById('prod-cost').value = p.cost;
+                    document.getElementById('prod-price').value = p.price;
+                    document.getElementById('prod-gst').value = p.gst_percent;
+                    document.getElementById('prod-stock').value = p.stock;
+                    document.getElementById('prod-expiry').value = p.expiry;
+                },
+                delete: (id) => {
+                    if (confirm("Delete this product?")) {
+                        const products = Store.get('products', []).filter(p => p.id !== id);
+                        Store.set('products', products);
+                        App.products.renderTable();
+                    }
+                }
+            },
+
+            categories: {
+                renderTable: () => {
+                    const cats = Store.get('categories', []);
+                    const prods = Store.get('products', []);
+                    const tbody = document.querySelector('#categories-table tbody');
+                    if (tbody) tbody.innerHTML = cats.map(c => `
+                        <tr>
+                            <td><span style="display:inline-block;width:10px;height:10px;background:${c.color};border-radius:50%;margin-right:5px"></span> ${c.name}</td>
+                            <td>${c.color}</td>
+                            <td>${prods.filter(p => p.category_id === c.id).length}</td>
+                            <td>
+                                <button class="btn btn-sm text-danger" onclick="App.categories.delete('${c.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                },
+                openModal: () => {
+                    document.getElementById('cat-id').value = '';
+                    document.getElementById('cat-name').value = '';
+                    App.router.showModal('modal-category');
+                },
+                save: () => {
+                    const cats = Store.get('categories', []);
+                    const id = document.getElementById('cat-id').value || Utils.id();
+                    const name = document.getElementById('cat-name').value;
+                    if (!name) return;
+
+                    const newCat = { id, name, color: document.getElementById('cat-color').value };
+                    // Check update or new
+                    const idx = cats.findIndex(c => c.id === id);
+                    if (idx > -1) cats[idx] = newCat;
+                    else cats.push(newCat);
+
+                    Store.set('categories', cats);
+                    App.router.hideModal('modal-category');
+                    App.categories.renderTable();
+                },
+                delete: (id) => {
+                    if (confirm("Delete category?")) {
+                        Store.set('categories', Store.get('categories', []).filter(c => c.id !== id));
+                        App.categories.renderTable();
+                    }
+                }
+            },
+
+            customers: {
+                renderTable: () => {
+                    const custs = Store.get('customers', []);
+                    const search = document.getElementById('cust-search').value.toLowerCase();
+                    const tbody = document.querySelector('#customers-table tbody');
+                    if (!tbody) return;
+
+                    const html = custs.filter(c => c.name.toLowerCase().includes(search) || (c.phone && c.phone.includes(search)) || c.id.toLowerCase().includes(search))
+                        .map(c => `
+                        <tr>
+                            <td>${c.id}</td>
+                            <td>${c.name}</td>
+                            <td>${c.phone || '-'}</td>
+                            <td class="${c.balance > 0 ? 'text-danger font-bold' : (c.balance < 0 ? 'text-success' : '')}">${Utils.formatCurrency(c.balance || 0)}</td>
+                            <td>
+                                <button class="btn btn-sm" onclick="App.customers.openDebtModal('${c.id}')" title="Add Debt">➕🔴</button>
+                                <button class="btn btn-sm" onclick="App.customers.openCreditModal('${c.id}')" title="Receive Payment">➖🟢</button>
+                                <button class="btn btn-sm text-primary" onclick="App.customers.edit('${c.id}')">✏️</button>
+                                <button class="btn btn-sm text-danger" onclick="App.customers.delete('${c.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    tbody.innerHTML = html;
+                },
+                openModal: () => {
+                    document.getElementById('cust-id').value = '';
+                    document.getElementById('cust-name').value = '';
+                    document.getElementById('cust-phone').value = '';
+                    document.getElementById('cust-addr').value = '';
+                    document.getElementById('cust-gstin').value = '';
+                    App.router.showModal('modal-customer');
+                },
+                save: () => {
+                    const custs = Store.get('customers', []);
+                    const id = document.getElementById('cust-id').value || Utils.id();
+
+                    const name = document.getElementById('cust-name').value;
+                    if (!name) { alert("Name is required"); return; }
+
+                    const newCust = {
+                        id: id,
+                        name: name,
+                        phone: document.getElementById('cust-phone').value,
+                        address: document.getElementById('cust-addr').value,
+                        gstin: document.getElementById('cust-gstin').value,
+                        balance: 0
+                    };
+
+                    // preservation logic
+                    const existingIdx = custs.findIndex(c => c.id === id);
+                    if (existingIdx > -1) {
+                        newCust.balance = custs[existingIdx].balance;
+                        custs[existingIdx] = newCust;
+                    } else {
+                        custs.push(newCust);
+                    }
+
+                    Store.set('customers', custs);
+                    App.router.hideModal('modal-customer');
+                    App.customers.renderTable();
+                },
+                edit: (id) => {
+                    const c = Store.get('customers', []).find(x => x.id === id);
+                    if (!c) return;
+                    document.getElementById('cust-id').value = c.id;
+                    document.getElementById('cust-name').value = c.name;
+                    document.getElementById('cust-phone').value = c.phone;
+                    document.getElementById('cust-addr').value = c.address;
+                    document.getElementById('cust-gstin').value = c.gstin;
+                    App.router.showModal('modal-customer');
+                },
+                delete: (id) => {
+                    if (confirm("Delete this customer?")) {
+                        const custs = Store.get('customers', []).filter(c => c.id !== id);
+                        Store.set('customers', custs);
+                        App.customers.renderTable();
+                    }
+                },
+                openDebtModal: (id) => {
+                    const custs = Store.get('customers', []);
+                    const idx = custs.findIndex(c => c.id === id);
+                    if (idx === -1) return;
+
+                    document.getElementById('debt-cust-id').value = id;
+                    document.getElementById('debt-cust-name').innerText = custs[idx].name;
+                    document.getElementById('debt-amount').value = '';
+                    App.router.showModal('modal-debt');
+                },
+                confirmDebt: () => {
+                    const id = document.getElementById('debt-cust-id').value;
+                    const amount = parseFloat(document.getElementById('debt-amount').value);
+
+                    if (isNaN(amount) || amount <= 0) {
+                        alert("Invalid amount.");
+                        return;
+                    }
+
+                    const custs = Store.get('customers', []);
+                    const idx = custs.findIndex(c => c.id === id);
+                    if (idx === -1) return;
+
+                    if (!custs[idx].balance) custs[idx].balance = 0;
+                    custs[idx].balance += amount;
+                    Store.set('customers', custs);
+                    App.router.hideModal('modal-debt');
+                    App.customers.renderTable();
+                },
+                openCreditModal: (id) => {
+                    const custs = Store.get('customers', []);
+                    const idx = custs.findIndex(c => c.id === id);
+                    if (idx === -1) return;
+
+                    document.getElementById('credit-cust-id').value = id;
+                    document.getElementById('credit-cust-name').innerText = custs[idx].name;
+                    document.getElementById('credit-amount').value = '';
+                    App.router.showModal('modal-credit');
+                },
+                confirmCredit: () => {
+                    const id = document.getElementById('credit-cust-id').value;
+                    const amount = parseFloat(document.getElementById('credit-amount').value);
+
+                    if (isNaN(amount) || amount <= 0) {
+                        alert("Invalid amount.");
+                        return;
+                    }
+
+                    const custs = Store.get('customers', []);
+                    const idx = custs.findIndex(c => c.id === id);
+                    if (idx === -1) return;
+
+                    if (!custs[idx].balance) custs[idx].balance = 0;
+                    custs[idx].balance -= amount;
+                    Store.set('customers', custs);
+                    App.router.hideModal('modal-credit');
+                    App.customers.renderTable();
+                }
+            },
+
+            pos: {
+                cart: [],
+                filterCategory: '',
+                orderType: 'Self Pickup',
+
+                renderProducts: () => {
+                    App.pos.filterAndRender();
+                },
+                filterAndRender: () => {
+                    const products = Store.get('products', []);
+                    const cats = Store.get('categories', []);
+                    const searchInput = document.getElementById('pos-search');
+                    const search = searchInput ? searchInput.value.toLowerCase() : '';
+                    const catSelect = document.getElementById('pos-category-filter');
+
+                    // Populate filter if empty
+                    if (catSelect && catSelect.options.length === 0) {
+                        catSelect.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    }
+                    if (catSelect) App.pos.filterCategory = catSelect.value;
+
+                    const filtered = products.filter(p => {
+                        const matchCat = !App.pos.filterCategory || p.category_id === App.pos.filterCategory;
+                        const matchSearch = p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search));
+                        return matchCat && matchSearch;
+                    });
+
+                    const grid = document.getElementById('pos-product-list');
+                    if (grid) grid.innerHTML = filtered.map(p => `
+                        <div class="product-card" onclick="App.pos.addToCart('${p.id}')">
+                            <div class="stock-badge ${p.stock <= 0 ? 'bg-danger' : ''}">${p.stock}</div>
+                            <img src="${p.image || 'https://via.placeholder.com/150?text=No+Img'}" onerror="this.src='https://via.placeholder.com/150?text=No+Img'">
+                            <div class="font-bold p-1 text-sm text-truncate" title="${p.name}">${p.name}</div>
+                            <div class="text-primary p-1 font-bold">${Utils.formatCurrency(p.price)}</div>
+                        </div>
+                    `).join('');
+
+                    // Barcode auto-add
+                    if (filtered.length === 1 && search.length > 3 && filtered[0].barcode === search) {
+                        App.pos.addToCart(filtered[0].id);
+                        searchInput.value = '';
+                    }
+                },
+                addToCart: (pid, overrideQty = null) => {
+                    const prod = Store.get('products', []).find(p => p.id === pid);
+                    if (!prod) return;
+
+                    if (prod.unit === 'kg' && overrideQty === null) {
+                        document.getElementById('weight-prod-id').value = pid;
+                        document.getElementById('weight-grams').value = '';
+                        App.router.showModal('modal-weight');
+                        return;
+                    }
+
+                    const addQty = overrideQty !== null ? overrideQty : 1;
+                    const existing = App.pos.cart.find(i => i.id === pid);
+                    const currentQty = existing ? existing.qty : 0;
+
+                    if (prod.stock < (currentQty + addQty)) {
+                        alert(`Out of stock! Max available: ${prod.stock}`);
+                        return;
+                    }
+
+                    if (existing) existing.qty += addQty;
+                    else App.pos.cart.push({ ...prod, qty: addQty });
+
+                    App.pos.renderCart();
+                },
+                confirmWeight: () => {
+                    const pid = document.getElementById('weight-prod-id').value;
+                    const grams = parseFloat(document.getElementById('weight-grams').value);
+                    if (isNaN(grams) || grams <= 0) {
+                        alert("Please enter a valid weight in grams.");
+                        return;
+                    }
+                    const kg = grams / 1000;
+                    App.router.hideModal('modal-weight');
+                    App.pos.addToCart(pid, kg);
+                },
+                renderCart: () => {
+                    const container = document.getElementById('pos-cart-items');
+                    if (!container) return;
+
+                    container.innerHTML = App.pos.cart.map((item, idx) => {
+                        const isKg = item.unit === 'kg';
+                        const displayQty = isKg ? `${item.qty} kg` : item.qty;
+                        return `
+                        <div class="cart-item">
+                            <div>
+                                <div class="font-bold">${item.name}</div>
+                                <div class="text-muted text-xs">${Utils.formatCurrency(item.price)} x ${displayQty}</div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${isKg ?
+                                `<button class="btn btn-sm text-danger font-bold" onclick="App.pos.updateQty(${idx}, -${item.qty})">🗑️</button>` :
+                                `<button class="btn btn-sm" onclick="App.pos.updateQty(${idx}, -1)">-</button>
+                                    <span>${item.qty}</span>
+                                    <button class="btn btn-sm" onclick="App.pos.updateQty(${idx}, 1)">+</button>`
+                            }
+                            </div>
+                        </div>
+                     `}).join('');
+
+                    // Calc totals
+                    let total = 0, tax = 0;
+                    const config = Store.get('shop_config', {});
+
+                    App.pos.cart.forEach(item => {
+                        const itemTotal = item.price * item.qty;
+                        const itemTax = itemTotal * ((item.gst_percent || config.gst_default || 0) / 100);
+                        total += itemTotal;
+                        tax += itemTax;
+                    });
+
+                    document.getElementById('cart-subtotal').textContent = Utils.formatCurrency(total);
+                    document.getElementById('cart-tax').textContent = Utils.formatCurrency(tax);
+                    document.getElementById('cart-total').textContent = Utils.formatCurrency(total + tax);
+                },
+                updateQty: (idx, delta) => {
+                    const item = App.pos.cart[idx];
+                    const newQty = item.qty + delta;
+
+                    if (delta > 0) {
+                        const prod = Store.get('products', []).find(p => p.id === item.id);
+                        if (prod && newQty > prod.stock) {
+                            alert(`Cannot add more. Max stock: ${prod.stock}`);
+                            return;
+                        }
+                    }
+
+                    // Reset discount on cart change
+                    App.pos.calculatedDiscount = 0;
+
+                    item.qty = newQty;
+                    if (item.qty <= 0) App.pos.cart.splice(idx, 1);
+                    App.pos.renderCart();
+                },
+                clearCart: () => {
+                    App.pos.cart = [];
+                    const cNameInput = document.getElementById('cart-customer-name');
+                    const cPhoneInput = document.getElementById('cart-customer-whatsapp');
+                    if (cNameInput) cNameInput.value = '';
+                    if (cPhoneInput) cPhoneInput.value = '';
+                    App.pos.renderCart();
+                },
+                showCheckout: () => {
+                    if (App.pos.cart.length === 0) return;
+                    // Calc final total
+                    let total = 0, tax = 0;
+                    const config = Store.get('shop_config', {});
+                    App.pos.cart.forEach(item => {
+                        total += item.price * item.qty;
+                        tax += (item.price * item.qty) * ((item.gst_percent || config.gst_default || 0) / 100);
+                    });
+                    App.pos.checkoutSubtotal = total;
+                    App.pos.checkoutTax = tax;
+                    App.pos.checkoutTotal = total + tax;
+                    document.getElementById('pay-total-display').textContent = Utils.formatCurrency(App.pos.checkoutTotal);
+
+                    // Reset UI
+                    document.getElementById('pay-mode').value = 'Cash';
+                    App.pos.setPayMode('Cash');
+                    document.getElementById('pay-discount-val').value = '';
+                    document.getElementById('pay-discount-type').value = 'amount';
+                    document.getElementById('pay-amount-paid').value = App.pos.checkoutTotal.toFixed(2);
+                    document.getElementById('pay-change-container').style.display = 'none';
+
+                    // Reset Order Type
+                    App.pos.setOrderType('Self Pickup');
+                    if (config.show_delivery) {
+                        document.getElementById('checkout-order-type-container').style.display = 'block';
+                    } else {
+                        document.getElementById('checkout-order-type-container').style.display = 'none';
+                    }
+
+                    App.router.showModal('modal-checkout');
+                    App.pos.calculateChange();
+                },
+                setOrderType: (type) => {
+                    App.pos.orderType = type;
+                    const btnIn = document.getElementById('btn-order-takein');
+                    const btnDel = document.getElementById('btn-order-delivery');
+
+                    if (type === 'Self Pickup') {
+                        btnIn.classList.add('btn-primary');
+                        btnDel.classList.remove('btn-primary');
+                    } else {
+                        btnIn.classList.remove('btn-primary');
+                        btnDel.classList.add('btn-primary');
+                    }
+                },
+                setPayMode: (mode) => {
+                    document.getElementById('pay-mode').value = mode;
+
+                    // UPI QR Handling
+                    const qrContainer = document.getElementById('pay-upi-qr-container');
+                    if (mode === 'UPI') {
+                        const config = Store.get('shop_config', {});
+                        if (config.upi_qr) {
+                            document.getElementById('pay-upi-qr-img').src = config.upi_qr;
+                            qrContainer.classList.remove('hidden');
+                        } else {
+                            qrContainer.classList.add('hidden');
+                        }
+                    } else {
+                        qrContainer.classList.add('hidden');
+                    }
+                },
+                calculateChange: () => {
+                    const finalTotal = App.pos.checkoutTotal - (App.pos.calculatedDiscount || 0);
+                    const amountPaidStr = document.getElementById('pay-amount-paid').value;
+                    const amountPaid = parseFloat(amountPaidStr);
+                    const container = document.getElementById('pay-change-container');
+                    const changeLabel = document.getElementById('pay-change-label');
+                    const changeVal = document.getElementById('pay-change-val');
+
+                    if (isNaN(amountPaid) || amountPaidStr === '') {
+                        container.style.display = 'none';
+                        return;
+                    }
+
+                    const diff = amountPaid - finalTotal;
+                    container.style.display = 'flex';
+
+                    if (diff > 0) {
+                        changeLabel.textContent = 'Change to Return:';
+                        changeLabel.className = 'font-bold text-success';
+                        changeVal.textContent = Utils.formatCurrency(diff);
+                        changeVal.className = 'font-bold text-success';
+                    } else if (diff < 0) {
+                        changeLabel.textContent = 'Debt to Add:';
+                        changeLabel.className = 'font-bold text-danger';
+                        changeVal.textContent = Utils.formatCurrency(Math.abs(diff));
+                        changeVal.className = 'font-bold text-danger';
+                    } else {
+                        changeLabel.textContent = 'Change:';
+                        changeLabel.className = 'font-bold text-muted';
+                        changeVal.textContent = Utils.formatCurrency(0);
+                        changeVal.className = 'font-bold text-muted';
+                    }
+                },
+                applyBillDiscount: () => {
+                    const val = parseFloat(document.getElementById('pay-discount-val').value) || 0;
+                    const type = document.getElementById('pay-discount-type').value;
+                    let discAmt = 0;
+
+                    if (type === 'percent') {
+                        discAmt = App.pos.checkoutTotal * (val / 100);
+                    } else {
+                        discAmt = val;
+                    }
+
+                    // Cap discount at total
+                    if (discAmt > App.pos.checkoutTotal) {
+                        alert("Discount cannot exceed total amount");
+                        discAmt = 0;
+                        document.getElementById('pay-discount-val').value = '';
+                    }
+
+                    document.getElementById('pay-total-display').textContent = Utils.formatCurrency(App.pos.checkoutTotal - discAmt);
+                    App.pos.calculatedDiscount = discAmt; // Store for valid checkout
+                    App.pos.calculateChange();
+                },
+                confirmCheckout: () => {
+                    const custName = document.getElementById('cart-customer-name').value || 'Guest';
+                    const custPhone = document.getElementById('cart-customer-whatsapp').value || '';
+                    const custId = custPhone ? 'cust_' + custPhone : '';
+                    const discount = App.pos.calculatedDiscount || 0;
+                    const finalTotal = App.pos.checkoutTotal - discount;
+                    const mode = document.getElementById('pay-mode').value;
+
+                    const amountPaid = parseFloat(document.getElementById('pay-amount-paid').value);
+                    if (isNaN(amountPaid)) {
+                        alert("Please enter a valid amount paid");
+                        return;
+                    }
+
+                    const diff = amountPaid - finalTotal;
+                    let debtToAdd = 0;
+                    if (diff < 0) {
+                        if (!custPhone || custName === 'Guest') {
+                            alert("Customer Name and WhatsApp No are required when capturing debt.");
+                            return;
+                        }
+                        debtToAdd = Math.abs(diff);
+                    }
+
+                    // Auto-Add Customer to DB if valid named & phoned customer exists (simplistic check)
+                    let finalCustId = custId;
+                    if (custPhone) {
+                        const custsDB = Store.get('customers', []);
+                        let existing = custsDB.find(c => c.phone === custPhone);
+                        if (!existing) {
+                            finalCustId = 'c_' + Date.now();
+                            let newCust = {
+                                id: finalCustId,
+                                name: custName,
+                                phone: custPhone,
+                                address: '', gstin: '', balance: 0
+                            };
+                            custsDB.push(newCust);
+                            existing = newCust;
+                            Store.set('customers', custsDB);
+                        } else {
+                            finalCustId = existing.id;
+                        }
+
+                        if (debtToAdd > 0) {
+                            if (!existing.balance) existing.balance = 0;
+                            existing.balance += debtToAdd;
+                            Store.set('customers', custsDB);
+                            App.customers.renderTable();
+                        }
+                    }
+
+                    // Create Invoice
+                    const invoice = {
+                        id: Utils.id(),
+                        invoice_no: 'INV-' + Date.now().toString().substr(-6),
+                        date: new Date().toISOString(),
+                        customer_id: finalCustId,
+                        customer_name: custName,
+                        customer_phone: custPhone,
+                        items: App.pos.cart,
+                        subtotal: App.pos.checkoutSubtotal,
+                        tax: App.pos.checkoutTax,
+                        discount: discount,
+                        total: finalTotal,
+                        payment_mode: mode,
+                        order_type: App.pos.orderType
+                    };
+
+                    // Save
+                    const invs = Store.get('invoices', []);
+                    invs.push(invoice);
+                    Store.set('invoices', invs);
+
+                    // Update Stock
+                    const prods = Store.get('products', []);
+                    App.pos.cart.forEach(cItem => {
+                        const p = prods.find(x => x.id === cItem.id);
+                        if (p) p.stock -= cItem.qty;
+                    });
+                    Store.set('products', prods);
+
+                    // Refresh UI
+                    App.pos.renderProducts();
+                    if (document.getElementById('view-products') && !document.getElementById('view-products').classList.contains('hidden')) App.products.renderTable();
+                    App.dashboard.refresh();
+
+                    App.router.hideModal('modal-checkout');
+                    App.pos.sendWhatsAppBill(invoice);
+                    App.pos.printReceipt(invoice);
+                    App.pos.clearCart();
+                },
+                printReceipt: (inv) => {
+                    const config = Store.get('shop_config', { name: 'v-billing' });
+                    const custs = Store.get('customers', []);
+                    const customer = custs.find(c => c.id === inv.customer_id);
+                    const cName = customer ? customer.name : (inv.customer_name || 'Guest');
+                    const cPhone = customer ? customer.phone : (inv.customer_phone || '');
+
+                    // Debug: Check if logo data exists
+                    if (!config.logo) console.warn("No logo found in config");
+                    if (!config.show_logo) console.warn("Show logo is disabled");
+
+                    const area = document.getElementById('receipt-print-area');
+                    area.innerHTML = `
+                        <div class="receipt-header" style="overflow:hidden; margin-bottom:10px;">
+                            ${(config.logo && (config.show_logo === true || config.show_logo === 'true' || config.show_logo === 'on')) ? `
+                                <div style="float:left; width:30%;">
+                                    <img src="${config.logo}" style="width:100%; max-width:80px; max-height:80px; object-fit:contain;">
+                                </div>
+                                <div style="float:right; width:70%; text-align:right;">
+                            ` : `<div style="text-align:center;">`}
+                                <h3 style="margin:0">${config.name}</h3>
+                                <p style="margin:0; font-size:0.8em">${config.address}</p>
+                                <p style="margin:0; font-size:0.8em">${config.phone}</p>
+                                ${config.gstin ? `<p style="margin:0; font-size:0.8em">GSTIN: ${config.gstin}</p>` : ''}
+                            </div>
+                            <div style="clear:both;"></div>
+                        </div>
+                        <div style="text-align:center; margin-bottom:10px; border-bottom:1px dashed #000; padding-bottom:5px">
+                            <p style="margin:0">Invoice: ${inv.invoice_no}</p>
+                            <p style="margin:0">Customer: ${cName}</p>
+                            ${cPhone ? `<p style="margin:0">Mobile: ${cPhone}</p>` : ''}
+                            ${customer && customer.address ? `<p style="margin:0">Address: ${customer.address}</p>` : ''}
+                            <p style="margin:0">${inv.date.replace('T', ' ').substring(0, 16)}</p>
+                        </div>
+                        <div class="receipt-divider"></div>
+                        <div style="border-bottom:1px solid #000; margin-bottom:5px; padding-bottom:2px; font-weight:bold; display:flex;">
+                            <span style="width:10%;">#</span>
+                            <span style="width:55%;">Item</span>
+                            <span style="width:35%; text-align:right;">Qty x Price</span>
+                        </div>
+                        ${inv.items.map((i, idx) => `
+                            <div class="receipt-line">
+                                <span style="width:10%;">${idx + 1}</span>
+                                <span style="width:55%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${i.name}</span>
+                                <span style="width:35%; text-align:right;">${i.qty} x ${i.price}</span>
+                            </div>
+                        `).join('')}
+                        <div class="receipt-divider"></div>
+                        <div class="receipt-line"><span>Subtotal</span> <span>${Utils.formatCurrency(inv.subtotal || inv.total)}</span></div>
+                        ${inv.discount > 0 ? `<div class="receipt-line"><span>Discount</span> <span>- ${Utils.formatCurrency(inv.discount)}</span></div>` : ''}
+                        ${(config.show_gst !== false && inv.tax > 0) ? `<div class="receipt-line"><span>Tax</span> <span>${Utils.formatCurrency(inv.tax)}</span></div>` : ''}
+                        <div class="receipt-line" style="font-weight:bold; border-top:1px dashed #000; padding-top:5px; margin-top:5px;">
+                            <span>Total</span> <span>${Utils.formatCurrency(inv.total)}</span>
+                        </div>
+                        <div class="receipt-line"><span>Mode</span> <span>${inv.payment_mode}</span></div>
+                        <div class="receipt-line"><span>Type</span> <span>${inv.order_type || 'Take In'}</span></div>
+                        <div class="receipt-divider"></div>
+                        <div style="text-align:center">${config.footer || 'Thanks!'}</div>
+                    `;
+                    window.print();
+                },
+                sendWhatsAppBill: (inv) => {
+                    if (!inv || !inv.customer_phone) {
+                        console.warn("No valid phone number for WhatsApp message");
+                        return;
+                    }
+
+                    let phone = inv.customer_phone;
+                    let formattedPhone = phone.replace(/\D/g, '');
+                    if (formattedPhone.length === 10) formattedPhone = '91' + formattedPhone;
+
+                    const config = Store.get('shop_config', {});
+                    let itemsText = inv.items.map(item => {
+                        return `${item.name} - ${item.qty} x ${Utils.formatCurrency(item.price)}`;
+                    }).join('%0A');
+
+                    let message = `Hello ${inv.customer_name || 'Customer'},%0A%0AHere is your bill from ${config.name || 'v-billing'}:%0A%0A${itemsText}%0A%0A---------------%0ASubtotal: ${Utils.formatCurrency(inv.subtotal)}`;
+                    if (inv.discount > 0) message += `%0ADiscount: -${Utils.formatCurrency(inv.discount)}`;
+                    if (inv.tax > 0) message += `%0ATax: ${Utils.formatCurrency(inv.tax)}`;
+                    message += `%0ATotal: ${Utils.formatCurrency(inv.total)}%0A%0AThank you for shopping with us!`;
+
+                    const url = `https://wa.me/${formattedPhone}?text=${message}`;
+                    const a = document.createElement('a');
+                    a.target = '_blank';
+                    a.href = url;
+                    a.click();
+                }
+            },
+
+            settings: {
+                load: () => {
+                    const c = Store.get('shop_config', {});
+                    document.getElementById('set-shop-name').value = c.name || '';
+                    document.getElementById('set-shop-addr').value = c.address || '';
+                    document.getElementById('set-shop-phone').value = c.phone || '';
+                    document.getElementById('set-shop-gstin').value = c.gstin || '';
+                    document.getElementById('set-gst-default').value = c.gst_default || '';
+                    document.getElementById('set-footer').value = c.footer || '';
+                    document.getElementById('set-show-logo').checked = c.show_logo || false;
+                    document.getElementById('set-show-gst').checked = c.show_gst !== false; // Default to true
+                    document.getElementById('set-show-delivery').checked = c.show_delivery || false;
+                    if (c.logo) {
+                        const img = document.getElementById('set-logo-preview');
+                        img.src = c.logo;
+                        img.style.display = 'block';
+                    }
+                    if (c.upi_qr) {
+                        const img = document.getElementById('set-upi-preview');
+                        img.src = c.upi_qr;
+                        img.style.display = 'block';
+                    }
+                },
+                save: async () => {
+                    // Handle Logo
+                    let logo = Store.get('shop_config', {}).logo;
+                    const fileInput = document.getElementById('set-logo-input');
+                    if (fileInput.files[0]) {
+                        try {
+                            logo = await Utils.readFile(fileInput.files[0]);
+                        } catch (e) { console.error(e); }
+                    }
+
+                    // Handle UPI QR
+                    let upi_qr = Store.get('shop_config', {}).upi_qr;
+                    const upiInput = document.getElementById('set-upi-input');
+                    if (upiInput.files[0]) {
+                        try {
+                            upi_qr = await Utils.readFile(upiInput.files[0]);
+                        } catch (e) { console.error(e); }
+                    }
+
+                    const c = {
+                        name: document.getElementById('set-shop-name').value,
+                        address: document.getElementById('set-shop-addr').value,
+                        phone: document.getElementById('set-shop-phone').value,
+                        gstin: document.getElementById('set-shop-gstin').value,
+                        gst_default: parseFloat(document.getElementById('set-gst-default').value),
+                        footer: document.getElementById('set-footer').value,
+                        logo: logo,
+                        show_logo: document.getElementById('set-show-logo').checked,
+                        show_gst: document.getElementById('set-show-gst').checked,
+                        show_delivery: document.getElementById('set-show-delivery').checked,
+                        upi_qr: upi_qr
+                    };
+                    Store.set('shop_config', c);
+                    alert('Settings Saved');
+                },
+                backup: () => {
+                    try {
+                        const data = {
+                            config: Store.get('shop_config', {}),
+                            products: Store.get('products', []),
+                            categories: Store.get('categories', []),
+                            customers: Store.get('customers', []),
+                            invoices: Store.get('invoices', [])
+                        };
+                        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `backup-${Utils.dateStr()}.json`;
+                        a.click();
+                    } catch (e) {
+                        alert("Backup failed: " + e.message);
+                    }
+                },
+                restore: (input) => {
+                    const file = input.files[0];
+                    if (!file) return;
+
+                    if (file.name.endsWith('.csv')) {
+                        App.settings.importCSV(file);
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (data.products) Store.set('products', data.products);
+                            if (data.config) Store.set('shop_config', data.config);
+                            if (data.categories) Store.set('categories', data.categories);
+                            if (data.customers) Store.set('customers', data.customers);
+                            if (data.invoices) Store.set('invoices', data.invoices);
+                            alert('Data Restored! Reloading...');
+                            location.reload();
+                        } catch (err) { alert('Invalid JSON File: ' + err.message); }
+                    };
+                    reader.readAsText(file);
+                },
+                exportCSV: () => {
+                    const prods = Store.get('products', []);
+                    if (prods.length === 0) return alert("No products to export");
+
+                    // Header
+                    const headers = ["id", "name", "category_id", "barcode", "cost", "price", "stock", "gst_percent"];
+                    const csv = [headers.join(',')];
+
+                    prods.forEach(p => {
+                        const row = headers.map(h => {
+                            let val = p[h] || '';
+                            if (typeof val === 'string' && val.includes(',')) val = `"${val}"`;
+                            return val;
+                        });
+                        csv.push(row.join(','));
+                    });
+
+                    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `products-${Utils.dateStr()}.csv`;
+                    a.click();
+                },
+                importCSV: (file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const rows = e.target.result.split('\n');
+                            const headers = rows[0].split(',').map(h => h.trim());
+                            const prods = Store.get('products', []);
+                            let count = 0;
+
+                            for (let i = 1; i < rows.length; i++) {
+                                if (!rows[i].trim()) continue;
+                                const cols = rows[i].split(','); // Simple split, assumes no commas in values for now or clean CSV
+                                const p = {};
+                                headers.forEach((h, idx) => p[h] = cols[idx]?.trim());
+
+                                if (p.name && p.price) {
+                                    p.price = parseFloat(p.price);
+                                    p.cost = parseFloat(p.cost) || 0;
+                                    p.stock = parseInt(p.stock) || 0;
+                                    p.gst_percent = parseFloat(p.gst_percent) || 0;
+                                    if (!p.id) p.id = Utils.id();
+
+                                    // Update or Add
+                                    const exIdx = prods.findIndex(x => x.id === p.id || (p.barcode && x.barcode === p.barcode));
+                                    if (exIdx > -1) prods[exIdx] = { ...prods[exIdx], ...p };
+                                    else prods.push(p);
+                                    count++;
+                                }
+                            }
+                            Store.set('products', prods);
+                            alert(`Imported ${count} products.`);
+                        } catch (err) { alert("CSV Error: " + err.message); }
+                    };
+                    reader.readAsText(file);
+                }
+            },
+
+            reports: {
+                searchById: (query) => {
+                    const q = query.trim().toLowerCase();
+                    const content = document.getElementById('report-content');
+                    if (!q) {
+                        content.innerHTML = '<p>Select a report type above.</p>';
+                        return;
+                    }
+
+                    const invs = Store.get('invoices', []);
+                    const custs = Store.get('customers', []);
+                    const matches = invs.filter(i =>
+                        i.id.toLowerCase().includes(q) ||
+                        i.invoice_no.toLowerCase().includes(q)
+                    );
+
+                    if (matches.length === 0) {
+                        content.innerHTML = '<p>No invoices found matching that ID or Invoice No.</p>';
+                        return;
+                    }
+
+                    let html = `<h3>Search Results for "${query}"</h3>
+                                <table>
+                                    <thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Total</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        ${matches.map(i => {
+                        const cName = custs.find(c => c.id === i.customer_id)?.name || 'Guest';
+                        return `<tr>
+                                <td>${i.date.substring(0, 10)} ${i.date.substring(11, 16)}</td>
+                                <td>${i.invoice_no}</td>
+                                <td>${cName}</td>
+                                <td>${Utils.formatCurrency(i.total)}</td>
+                                <td>
+                                    <button class="btn btn-sm" onclick="App.reports.print('${i.id}')" title="Print">🖨️</button>
+                                    <button class="btn btn-sm text-primary" onclick="App.reports.edit('${i.id}')" title="Edit/Void">✏️</button>
+                                    <button class="btn btn-sm text-danger" onclick="App.reports.delete('${i.id}')" title="Delete Permanent">🗑️</button>
+                                </td>
+                            </tr>`;
+                    }).join('')}
+                                    </tbody>
+                                </table>`;
+                    content.innerHTML = html;
+                },
+                render: (type, param) => {
+                    const invs = Store.get('invoices', []);
+                    const prods = Store.get('products', []);
+                    const custs = Store.get('customers', []);
+                    const content = document.getElementById('report-content');
+
+                    let html = '';
+
+                    if (type === 'daily') {
+                        const today = Utils.dateStr();
+                        const daily = invs.filter(i => i.date.startsWith(today));
+                        html = `<h3>Daily Report (${today})</h3>
+                                <div class="flex gap-4 my-2">
+                                    <div class="card p-2 flex-1 text-center bg-light">Bills: <b>${daily.length}</b></div>
+                                    <div class="card p-2 flex-1 text-center bg-light">Revenue: <b>${Utils.formatCurrency(daily.reduce((s, i) => s + i.total, 0))}</b></div>
+                                </div>
+                                <table>
+                                    <thead><tr><th>Time</th><th>Invoice</th><th>Customer</th><th>Mode</th><th>Total</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        ${daily.map(i => {
+                            const cName = custs.find(c => c.id === i.customer_id)?.name || 'Guest';
+                            return `<tr>
+                                <td>${i.date.substring(11, 16)}</td>
+                                <td>${i.invoice_no}</td>
+                                <td>${cName}</td>
+                                <td>${i.payment_mode}</td>
+                                <td>${Utils.formatCurrency(i.total)}</td>
+                                <td>
+                                    <button class="btn btn-sm" onclick="App.reports.print('${i.id}')" title="Print">🖨️</button>
+                                    <button class="btn btn-sm text-primary" onclick="App.reports.edit('${i.id}')" title="Edit/Void">✏️</button>
+                                    <button class="btn btn-sm text-danger" onclick="App.reports.delete('${i.id}')" title="Delete Permanent">🗑️</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'monthly') {
+                        const m = param || Utils.dateStr().substring(0, 7);
+                        const monthly = invs.filter(i => i.date.startsWith(m));
+                        html = `<h3>Monthly Report</h3>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <label>Select Month:</label>
+                                    <input type="month" value="${m}" onchange="App.reports.render('monthly', this.value)" class="input" style="width:auto">
+                                </div>
+                                <div class="flex gap-4 my-2">
+                                    <div class="card p-2 flex-1 text-center bg-light">Bills: <b>${monthly.length}</b></div>
+                                    <div class="card p-2 flex-1 text-center bg-light">Revenue: <b>${Utils.formatCurrency(monthly.reduce((s, i) => s + i.total, 0))}</b></div>
+                                </div>
+                                <table>
+                                    <thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Total</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        ${monthly.map(i => {
+                            const cName = custs.find(c => c.id === i.customer_id)?.name || 'Guest';
+                            return `<tr>
+                                <td>${i.date.substring(0, 10)}</td>
+                                <td>${i.invoice_no}</td>
+                                <td>${cName}</td>
+                                <td>${Utils.formatCurrency(i.total)}</td>
+                                <td>
+                                    <button class="btn btn-sm" onclick="App.reports.print('${i.id}')" title="Print">🖨️</button>
+                                    <button class="btn btn-sm text-primary" onclick="App.reports.edit('${i.id}')" title="Edit/Void">✏️</button>
+                                    <button class="btn btn-sm text-danger" onclick="App.reports.delete('${i.id}')" title="Delete Permanent">🗑️</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'item') {
+                        const itemSales = {};
+                        invs.forEach(inv => {
+                            inv.items.forEach(item => {
+                                if (!itemSales[item.id]) itemSales[item.id] = { name: item.name, qty: 0, total: 0 };
+                                itemSales[item.id].qty += item.qty;
+                                itemSales[item.id].total += (item.price * item.qty);
+                            });
+                        });
+                        const sorted = Object.values(itemSales).sort((a, b) => b.total - a.total);
+                        html = `<h3>Item Wise Sales</h3>
+                                <table>
+                                    <thead><tr><th>Product</th><th>Qty Sold</th><th>Total Revenue</th></tr></thead>
+                                    <tbody>
+                                        ${sorted.map(i => `<tr><td>${i.name}</td><td>${i.qty}</td><td>${Utils.formatCurrency(i.total)}</td></tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'customer') {
+                        const custSales = {};
+                        invs.forEach(inv => {
+                            const cId = inv.customer_id || 'guest';
+                            if (!custSales[cId]) custSales[cId] = { name: custs.find(c => c.id === cId)?.name || 'Guest', count: 0, total: 0 };
+                            custSales[cId].count++;
+                            custSales[cId].total += inv.total;
+                        });
+                        const sorted = Object.values(custSales).sort((a, b) => b.total - a.total);
+                        html = `<h3>Customer Wise Sales</h3>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <label>Search:</label>
+                                    <input type="text" onkeyup="App.reports.filterTable(this.value, 'rep-cust-table')" class="input" placeholder="Search customer..." style="width:auto">
+                                </div>
+                                <table id="rep-cust-table">
+                                    <thead><tr><th>Customer</th><th>Bills</th><th>Total Spent</th></tr></thead>
+                                    <tbody>
+                                        ${sorted.map(c => `<tr><td>${c.name} <small class="text-muted">(${c.id || c.name === 'Guest' ? '' : c.id})</small></td><td>${c.count}</td><td>${Utils.formatCurrency(c.total)}</td></tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'stock') {
+                        const totalVal = prods.reduce((s, p) => s + (p.stock * p.cost), 0);
+                        const totalSell = prods.reduce((s, p) => s + (p.stock * p.price), 0);
+                        html = `<h3>Stock Report</h3>
+                                <div class="flex gap-4 my-2">
+                                    <div class="card p-2 flex-1 text-center">Total Cost Value: <b>${Utils.formatCurrency(totalVal)}</b></div>
+                                    <div class="card p-2 flex-1 text-center">Total Sales Value: <b>${Utils.formatCurrency(totalSell)}</b></div>
+                                </div>
+                                <table>
+                                    <thead><tr><th>Product</th><th>Stock</th><th>Cost</th><th>Value (Cost)</th></tr></thead>
+                                    <tbody>
+                                        ${prods.map(p => `<tr><td>${p.name}</td><td>${p.stock}</td><td>${Utils.formatCurrency(p.cost)}</td><td>${Utils.formatCurrency(p.stock * p.cost)}</td></tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'lowstock') {
+                        const low = prods.filter(p => p.stock < 5);
+                        html = `<h3>Low Stock Report (< 5)</h3>
+                                <table>
+                                    <thead><tr><th>Product</th><th>Current Stock</th><th>Alert Level</th></tr></thead>
+                                    <tbody>
+                                        ${low.map(p => `<tr><td class="text-danger font-bold">${p.name}</td><td>${p.stock}</td><td>5</td></tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'debt') {
+                        const allCusts = Store.get('customers', []);
+                        let totalDebt = 0;
+                        let totalCredit = 0;
+
+                        const activeCusts = allCusts.filter(c => c.balance !== 0 && c.balance !== undefined);
+
+                        activeCusts.forEach(c => {
+                            if (c.balance > 0) totalDebt += c.balance;
+                            else if (c.balance < 0) totalCredit += Math.abs(c.balance);
+                        });
+
+                        html = `<h3>Debt & Credit Report</h3>
+                                <div class="flex gap-4 my-2">
+                                    <div class="card p-4 flex-1 text-center font-bold">
+                                        <div class="text-muted">Total Outstanding Debt</div>
+                                        <div class="text-2xl font-bold text-danger">${Utils.formatCurrency(totalDebt)}</div>
+                                    </div>
+                                    <div class="card p-4 flex-1 text-center font-bold">
+                                        <div class="text-muted">Total Advance / Credit</div>
+                                        <div class="text-2xl font-bold text-success">${Utils.formatCurrency(totalCredit)}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <label>Search:</label>
+                                    <input type="text" onkeyup="App.reports.filterTable(this.value, 'rep-debt-table')" class="input" placeholder="Search customer..." style="width:auto">
+                                </div>
+                                <table id="rep-debt-table">
+                                    <thead><tr><th>Customer</th><th>Phone</th><th>Balance</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        ${activeCusts.map(c => `
+                                            <tr>
+                                                <td>${c.name}</td>
+                                                <td>${c.phone || '-'}</td>
+                                                <td class="${c.balance > 0 ? 'text-danger font-bold' : 'text-success'}">${Utils.formatCurrency(c.balance)}</td>
+                                                <td>
+                                                    <button class="btn btn-sm" onclick="App.router.navigate('customers')" title="Go To Customers">↗️ Manager</button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'profit') {
+                        let totalRev = 0;
+                        let totalCost = 0;
+
+                        invs.forEach(i => {
+                            i.items.forEach(item => {
+                                totalRev += (item.price * item.qty);
+                                const p = prods.find(x => x.id === item.id);
+                                const c = item.cost || (p ? p.cost : 0) || 0;
+                                totalCost += (c * item.qty);
+                            });
+                        });
+
+                        const profit = totalRev - totalCost;
+                        const margin = totalRev > 0 ? ((profit / totalRev) * 100).toFixed(1) : 0;
+
+                        html = `<h3>Profit & Loss Statement</h3>
+                                <div class="flex gap-4 my-2">
+                                    <div class="card p-4 flex-1 text-center">
+                                        <div class="text-muted">Total Revenue</div>
+                                        <div class="text-2xl font-bold text-primary">${Utils.formatCurrency(totalRev)}</div>
+                                    </div>
+                                    <div class="card p-4 flex-1 text-center">
+                                        <div class="text-muted">Total Cost (COGS)</div>
+                                        <div class="text-2xl font-bold text-danger">${Utils.formatCurrency(totalCost)}</div>
+                                    </div>
+                                    <div class="card p-4 flex-1 text-center">
+                                        <div class="text-muted">Gross Profit</div>
+                                        <div class="text-2xl font-bold text-success">${Utils.formatCurrency(profit)}</div>
+                                        <small class="text-muted">${margin}% Margin</small>
+                                    </div>
+                                </div>
+                                <div class="text-muted text-center mt-4">
+                                    * Profit is calculated based on (Selling Price - Cost Price) * Qty of sold items.
+                                </div>`;
+                    }
+
+                    content.innerHTML = html;
+                },
+                filterTable: (idOrName, tableId) => {
+                    // Default to 'rep-cust-table' if no id provided, for backward compatibility if needed, though we only use it there.
+                    const tid = tableId || 'rep-cust-table';
+                    const search = idOrName.toLowerCase();
+                    const rows = document.querySelectorAll('#' + tid + ' tbody tr');
+                    rows.forEach(r => {
+                        const txt = r.innerText.toLowerCase();
+                        r.style.display = txt.includes(search) ? '' : 'none';
+                    });
+                },
+                print: (id) => {
+                    const inv = Store.get('invoices', []).find(i => i.id === id);
+                    if (inv) App.pos.printReceipt(inv);
+                },
+                edit: (id) => {
+                    if (!confirm("Edit this invoice? The current invoice will be deleted, stock will be restored, and items will be moved to the cart for editing.")) return;
+
+                    // 1. Get Invoice & Verify
+                    const invs = Store.get('invoices', []);
+                    const invIdx = invs.findIndex(i => i.id === id);
+                    if (invIdx === -1) return;
+                    const inv = invs[invIdx];
+
+                    // 2. Restore Stock
+                    const prods = Store.get('products', []);
+                    inv.items.forEach(item => {
+                        const p = prods.find(x => x.id === item.id);
+                        if (p) p.stock += item.qty;
+                    });
+                    Store.set('products', prods);
+
+                    // 3. Remove Invoice
+                    invs.splice(invIdx, 1);
+                    Store.set('invoices', invs);
+
+                    // 4. Load Cart
+                    App.pos.cart = inv.items;
+
+                    // Handle Customer
+                    const cNameInput = document.getElementById('cart-customer-name');
+                    const cPhoneInput = document.getElementById('cart-customer-whatsapp');
+                    if (cNameInput) cNameInput.value = inv.customer_name || '';
+                    if (cPhoneInput) cPhoneInput.value = inv.customer_phone || '';
+
+                    // Refresh State & Navigate
+                    App.pos.renderCart();
+                    App.router.navigate('pos');
+                    App.pos.renderCart();
+                    App.router.navigate('pos');
+                    alert("Invoice recalled to cart. Make changes and checkout again.");
+                },
+                delete: (id) => {
+                    if (!confirm("Delete this invoice PERMANENTLY? Stock will be restored.")) return;
+
+                    // 1. Get Invoice
+                    const invs = Store.get('invoices', []);
+                    const invIdx = invs.findIndex(i => i.id === id);
+                    if (invIdx === -1) return;
+                    const inv = invs[invIdx];
+
+                    // 2. Restore Stock
+                    const prods = Store.get('products', []);
+                    inv.items.forEach(item => {
+                        const p = prods.find(x => x.id === item.id);
+                        if (p) p.stock += item.qty;
+                    });
+                    Store.set('products', prods);
+
+                    // 3. Remove Invoice
+                    invs.splice(invIdx, 1);
+                    Store.set('invoices', invs);
+
+                    // 4. Refresh Report
+                    alert("Invoice deleted and stock restored.");
+                    // Identify current view context or just reload default 'daily' for simplicity,
+                    // or ideally re-render the current report type if possible.
+                    // Since we are inside reports view, we can try to refresh the last known report or just daily.
+                    App.reports.render('daily');
+                }
+            }
+        };
+
+        // Start
+        window.onload = App.init;
+    </script>
+</body>
+
+</html>
