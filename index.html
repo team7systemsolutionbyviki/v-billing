@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>v-billing</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             /* Light Theme */
@@ -721,7 +722,15 @@
                 <div class="flex justify-between mb-4">
                     <input type="text" id="prod-search" class="input" style="max-width: 300px;"
                         placeholder="Search products..." onkeyup="App.products.renderTable()">
-                    <button class="btn btn-primary" onclick="App.products.openModal()">+ Add Product</button>
+                    <div class="flex gap-2">
+                        <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv"
+                            onchange="App.products.importExcel(this)">
+                        <button class="btn" onclick="document.getElementById('prod-import-file').click()"
+                            title="Import from Excel">📥 Import</button>
+                        <button class="btn" onclick="App.products.exportExcel()" title="Export to Excel">📤
+                            Export</button>
+                        <button class="btn btn-primary" onclick="App.products.openModal()">+ Add Product</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table id="products-table">
@@ -797,6 +806,8 @@
                     <button class="btn" onclick="App.reports.render('profit')">Profit / Loss</button>
                     <button class="btn btn-warning" onclick="App.reports.render('debt')"
                         style="background-color: #ff9800; color: white;">Debt & Credit</button>
+                    <button class="btn" onclick="App.reports.render('payment')"
+                        style="background-color: #4caf50; color: white;">Payment Mode</button>
                     <button class="btn btn-danger" onclick="App.reports.render('lowstock')">Low Stock</button>
                 </div>
                 <div id="report-content" class="card p-4">
@@ -1096,7 +1107,16 @@
         const Utils = {
             id: () => '_' + Math.random().toString(36).substr(2, 9),
             formatCurrency: (num) => '₹' + parseFloat(num || 0).toFixed(2),
-            dateStr: (d = new Date()) => d.toISOString().split('T')[0],
+            dateStr: (d = new Date()) => {
+                const offset = d.getTimezoneOffset();
+                const local = new Date(d.getTime() - (offset * 60 * 1000));
+                return local.toISOString().split('T')[0];
+            },
+            dateTimeStr: (d = new Date()) => {
+                const offset = d.getTimezoneOffset();
+                const local = new Date(d.getTime() - (offset * 60 * 1000));
+                return local.toISOString().replace('T', ' ').substring(0, 19);
+            },
             readFile: (file) => new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target.result);
@@ -1338,7 +1358,7 @@
                     if (chart) {
                         chart.innerHTML = '';
                         const last7Days = [...Array(7)].map((_, i) => {
-                            const d = new Date(); d.setDate(d.getDate() - i); return d.toISOString().split('T')[0];
+                            const d = new Date(); d.setDate(d.getDate() - i); return Utils.dateStr(d);
                         }).reverse();
 
                         const vals = last7Days.map(d => invoices.filter(i => i.date.startsWith(d)).reduce((s, x) => s + (x.total || 0), 0));
@@ -1480,6 +1500,105 @@
                         Store.set('products', products);
                         App.products.renderTable();
                     }
+                },
+                exportExcel: () => {
+                    const products = Store.get('products', []);
+                    const cats = Store.get('categories', []);
+
+                    const data = products.map(p => ({
+                        'Name': p.name,
+                        'Brand': p.brand,
+                        'Category': cats.find(c => c.id === p.category_id)?.name || '',
+                        'Unit': p.unit || 'pcs',
+                        'Barcode': p.barcode || '',
+                        'Cost Price': p.cost || 0,
+                        'Selling Price': p.price || 0,
+                        'GST %': p.gst_percent || 0,
+                        'Stock': p.stock || 0,
+                        'Expiry Date': p.expiry || ''
+                    }));
+
+                    const worksheet = XLSX.utils.json_to_sheet(data);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+                    XLSX.writeFile(workbook, "Products_Report_" + Utils.dateStr() + ".xlsx");
+                },
+                importExcel: (input) => {
+                    const file = input.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const json = XLSX.utils.sheet_to_json(worksheet);
+
+                            const products = Store.get('products', []);
+                            const cats = Store.get('categories', []);
+                            let newCatsCount = 0;
+                            let addedCount = 0;
+                            let updatedCount = 0;
+
+                            json.forEach(row => {
+                                const name = row['Name'] || row['Product Name'];
+                                if (!name) return;
+
+                                // Find or create category
+                                const catName = row['Category'];
+                                let catId = '';
+                                if (catName) {
+                                    let cat = cats.find(c => c.name.toLowerCase() === catName.toLowerCase());
+                                    if (!cat) {
+                                        catId = 'c_' + Date.now() + Math.floor(Math.random() * 1000000).toString(36);
+                                        cats.push({ id: catId, name: catName, color: '#' + Math.floor(Math.random() * 16777215).toString(16) });
+                                        newCatsCount++;
+                                    } else {
+                                        catId = cat.id;
+                                    }
+                                }
+
+                                const newProd = {
+                                    id: Utils.id(),
+                                    name: name,
+                                    brand: row['Brand'] || '',
+                                    category_id: catId,
+                                    unit: String(row['Unit'] || '').toLowerCase() === 'kg' ? 'kg' : 'pcs',
+                                    barcode: String(row['Barcode'] || ''),
+                                    cost: parseFloat(row['Cost Price'] || 0),
+                                    price: parseFloat(row['Selling Price'] || row['Price'] || 0),
+                                    gst_percent: parseFloat(row['GST %'] || 0),
+                                    stock: parseInt(row['Stock'] || 0),
+                                    expiry: row['Expiry Date'] || '',
+                                    image: ''
+                                };
+
+                                const existingIdx = products.findIndex(p => p.name.toLowerCase() === newProd.name.toLowerCase());
+                                if (existingIdx > -1) {
+                                    products[existingIdx] = { ...products[existingIdx], ...newProd, id: products[existingIdx].id };
+                                    updatedCount++;
+                                } else {
+                                    products.push(newProd);
+                                    addedCount++;
+                                }
+                            });
+
+                            Store.set('categories', cats);
+                            Store.set('products', products);
+                            App.products.renderTable();
+
+                            // Re-init POS filters if needed
+                            if (App.pos && App.pos.renderProducts) App.pos.renderProducts();
+
+                            alert(`Import completed!\n- Products Added: ${addedCount}\n- Products Updated: ${updatedCount}\n- New Categories Created: ${newCatsCount}`);
+                            input.value = '';
+                        } catch (err) {
+                            console.error(err);
+                            alert("Error importing Excel. Please check the file format.");
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
                 }
             },
 
@@ -1953,11 +2072,19 @@
                         debtToAdd = Math.abs(diff);
                     }
 
-                    // Auto-Add Customer to DB if valid named & phoned customer exists (simplistic check)
+                    // Auto-Add Customer to DB if valid named customer exists
                     let finalCustId = custId;
-                    if (custPhone) {
+                    if (custName && custName !== 'Guest') {
                         const custsDB = Store.get('customers', []);
-                        let existing = custsDB.find(c => c.phone === custPhone);
+                        let existing;
+
+                        if (custPhone) {
+                            existing = custsDB.find(c => c.phone === custPhone);
+                        } else {
+                            // Find by name if phone is missing
+                            existing = custsDB.find(c => c.name === custName && !c.phone);
+                        }
+
                         if (!existing) {
                             finalCustId = 'c_' + Date.now();
                             let newCust = {
@@ -1985,7 +2112,7 @@
                     const invoice = {
                         id: Utils.id(),
                         invoice_no: 'INV-' + Date.now().toString().substr(-6),
-                        date: new Date().toISOString(),
+                        date: Utils.dateTimeStr(),
                         customer_id: finalCustId,
                         customer_name: custName,
                         customer_phone: custPhone,
@@ -1994,6 +2121,8 @@
                         tax: App.pos.checkoutTax,
                         discount: discount,
                         total: finalTotal,
+                        amount_paid: amountPaid,
+                        debt_added: debtToAdd,
                         payment_mode: mode,
                         order_type: App.pos.orderType
                     };
@@ -2315,7 +2444,11 @@
                                 </table>`;
                     content.innerHTML = html;
                 },
+                lastRenderType: null,
+                lastRenderParam: null,
                 render: (type, param) => {
+                    App.reports.lastRenderType = type;
+                    App.reports.lastRenderParam = param;
                     const invs = Store.get('invoices', []);
                     const prods = Store.get('products', []);
                     const custs = Store.get('customers', []);
@@ -2385,8 +2518,10 @@
                                 </table>`;
                     }
                     else if (type === 'item') {
+                        const m = param || Utils.dateStr();
+                        const filtered = invs.filter(i => i.date.startsWith(m));
                         const itemSales = {};
-                        invs.forEach(inv => {
+                        filtered.forEach(inv => {
                             inv.items.forEach(item => {
                                 if (!itemSales[item.id]) itemSales[item.id] = { name: item.name, qty: 0, total: 0 };
                                 itemSales[item.id].qty += item.qty;
@@ -2395,6 +2530,11 @@
                         });
                         const sorted = Object.values(itemSales).sort((a, b) => b.total - a.total);
                         html = `<h3>Item Wise Sales</h3>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <label>Filter Date/Month:</label>
+                                    <input type="text" value="${m}" onchange="App.reports.render('item', this.value)" class="input" placeholder="YYYY-MM-DD or YYYY-MM" style="width:200px">
+                                    <small class="text-muted">Tip: Enter YYYY-MM for monthly</small>
+                                </div>
                                 <table>
                                     <thead><tr><th>Product</th><th>Qty Sold</th><th>Total Revenue</th></tr></thead>
                                     <tbody>
@@ -2403,8 +2543,10 @@
                                 </table>`;
                     }
                     else if (type === 'customer') {
+                        const m = param || Utils.dateStr();
+                        const filtered = invs.filter(i => i.date.startsWith(m));
                         const custSales = {};
-                        invs.forEach(inv => {
+                        filtered.forEach(inv => {
                             const cId = inv.customer_id || 'guest';
                             if (!custSales[cId]) custSales[cId] = { name: custs.find(c => c.id === cId)?.name || 'Guest', count: 0, total: 0 };
                             custSales[cId].count++;
@@ -2412,14 +2554,63 @@
                         });
                         const sorted = Object.values(custSales).sort((a, b) => b.total - a.total);
                         html = `<h3>Customer Wise Sales</h3>
-                                <div class="flex items-center gap-2 mb-2">
-                                    <label>Search:</label>
-                                    <input type="text" onkeyup="App.reports.filterTable(this.value, 'rep-cust-table')" class="input" placeholder="Search customer..." style="width:auto">
+                                <div class="flex items-center gap-4 mb-2 flex-wrap">
+                                    <div class="flex items-center gap-2">
+                                        <label>Filter Date/Month:</label>
+                                        <input type="text" value="${m}" onchange="App.reports.render('customer', this.value)" class="input" placeholder="YYYY-MM-DD" style="width:150px">
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label>Search:</label>
+                                        <input type="text" onkeyup="App.reports.filterTable(this.value, 'rep-cust-table')" class="input" placeholder="Search customer..." style="width:150px">
+                                    </div>
                                 </div>
                                 <table id="rep-cust-table">
                                     <thead><tr><th>Customer</th><th>Bills</th><th>Total Spent</th></tr></thead>
                                     <tbody>
-                                        ${sorted.map(c => `<tr><td>${c.name} <small class="text-muted">(${c.id || c.name === 'Guest' ? '' : c.id})</small></td><td>${c.count}</td><td>${Utils.formatCurrency(c.total)}</td></tr>`).join('')}
+                                        ${sorted.map(c => `<tr><td>${c.name}</td><td>${c.count}</td><td>${Utils.formatCurrency(c.total)}</td></tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'payment') {
+                        const m = param || Utils.dateStr();
+                        const filtered = invs.filter(i => i.date.startsWith(m));
+                        const paySales = {
+                            'Cash': { count: 0, total: 0 },
+                            'UPI': { count: 0, total: 0 }
+                        };
+                        filtered.forEach(inv => {
+                            const mode = inv.payment_mode || 'Cash';
+                            if (!paySales[mode]) paySales[mode] = { count: 0, total: 0 };
+                            paySales[mode].count++;
+                            paySales[mode].total += inv.total;
+                        });
+                        html = `<h3>Payment Mode Wise Sales</h3>
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label>Filter Date/Month:</label>
+                                    <input type="text" value="${m}" onchange="App.reports.render('payment', this.value)" class="input" placeholder="YYYY-MM-DD" style="width:200px">
+                                </div>
+                                <div class="grid gap-4 my-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                    <div class="card p-4 text-center">
+                                        <div class="text-muted">Cash Collection</div>
+                                        <div class="text-2xl font-bold text-success">${Utils.formatCurrency(paySales['Cash'].total)}</div>
+                                        <div class="text-xs text-muted">${paySales['Cash'].count} Bills</div>
+                                    </div>
+                                    <div class="card p-4 text-center">
+                                        <div class="text-muted">UPI Collection</div>
+                                        <div class="text-2xl font-bold text-primary">${Utils.formatCurrency(paySales['UPI'].total)}</div>
+                                        <div class="text-xs text-muted">${paySales['UPI'].count} Bills</div>
+                                    </div>
+                                </div>
+                                <table class="mt-4">
+                                    <thead><tr><th>Payment Mode</th><th>Bills</th><th>Total Collection</th></tr></thead>
+                                    <tbody>
+                                        ${Object.keys(paySales).map(mode => `
+                                            <tr>
+                                                <td><b>${mode}</b></td>
+                                                <td>${paySales[mode].count}</td>
+                                                <td>${Utils.formatCurrency(paySales[mode].total)}</td>
+                                            </tr>
+                                        `).join('')}
                                     </tbody>
                                 </table>`;
                     }
@@ -2492,10 +2683,12 @@
                                 </table>`;
                     }
                     else if (type === 'profit') {
+                        const m = param || Utils.dateStr();
+                        const filtered = invs.filter(i => i.date.startsWith(m));
                         let totalRev = 0;
                         let totalCost = 0;
 
-                        invs.forEach(i => {
+                        filtered.forEach(i => {
                             i.items.forEach(item => {
                                 totalRev += (item.price * item.qty);
                                 const p = prods.find(x => x.id === item.id);
@@ -2508,6 +2701,10 @@
                         const margin = totalRev > 0 ? ((profit / totalRev) * 100).toFixed(1) : 0;
 
                         html = `<h3>Profit & Loss Statement</h3>
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label>Filter Date/Month:</label>
+                                    <input type="text" value="${m}" onchange="App.reports.render('profit', this.value)" class="input" placeholder="YYYY-MM-DD" style="width:200px">
+                                </div>
                                 <div class="flex gap-4 my-2">
                                     <div class="card p-4 flex-1 text-center">
                                         <div class="text-muted">Total Revenue</div>
@@ -2561,6 +2758,16 @@
                     });
                     Store.set('products', prods);
 
+                    // 2.5 Revert Customer Balance
+                    if (inv.customer_id && inv.debt_added > 0) {
+                        const custs = Store.get('customers', []);
+                        const c = custs.find(x => x.id === inv.customer_id);
+                        if (c) {
+                            c.balance = (c.balance || 0) - inv.debt_added;
+                            Store.set('customers', custs);
+                        }
+                    }
+
                     // 3. Remove Invoice
                     invs.splice(invIdx, 1);
                     Store.set('invoices', invs);
@@ -2575,8 +2782,7 @@
                     if (cPhoneInput) cPhoneInput.value = inv.customer_phone || '';
 
                     // Refresh State & Navigate
-                    App.pos.renderCart();
-                    App.router.navigate('pos');
+                    App.dashboard.refresh();
                     App.pos.renderCart();
                     App.router.navigate('pos');
                     alert("Invoice recalled to cart. Make changes and checkout again.");
@@ -2602,12 +2808,23 @@
                     invs.splice(invIdx, 1);
                     Store.set('invoices', invs);
 
-                    // 4. Refresh Report
+                    // 4. Revert Customer Balance
+                    if (inv.customer_id && inv.debt_added > 0) {
+                        const custs = Store.get('customers', []);
+                        const c = custs.find(x => x.id === inv.customer_id);
+                        if (c) {
+                            c.balance = (c.balance || 0) - inv.debt_added;
+                            Store.set('customers', custs);
+                        }
+                    }
+
+                    // 4. Refresh Dashboard & Report
+                    App.dashboard.refresh();
                     alert("Invoice deleted and stock restored.");
-                    // Identify current view context or just reload default 'daily' for simplicity,
-                    // or ideally re-render the current report type if possible.
-                    // Since we are inside reports view, we can try to refresh the last known report or just daily.
-                    App.reports.render('daily');
+
+                    const activeReport = App.reports.lastRenderType || 'daily';
+                    const activeParam = App.reports.lastRenderParam;
+                    App.reports.render(activeReport, activeParam);
                 }
             }
         };
