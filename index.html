@@ -7,20 +7,26 @@
     <title>v-billing</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
         :root {
-            /* Light Theme */
-            --primary: #2e7d32;
-            --primary-dark: #1b5e20;
-            --primary-light: #e8f5e9;
-            --bg-body: #f8f9fa;
+            /* Premium Light Theme - Forest Green Palette */
+            --primary: #1e4d2b;
+            --primary-dark: #14351d;
+            --primary-light: #eef7f0;
+            --bg-body: #fdfdfd;
             --bg-card: #ffffff;
-            --text-main: #212529;
-            --text-muted: #6c757d;
-            --border: #dee2e6;
-            --success: #198754;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --text-main: #1a1c1e;
+            --text-muted: #5e6368;
+            --border: #e2e8f0;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius: 0.75rem;
+            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
         [data-theme="dark"] {
@@ -37,7 +43,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: var(--font-main);
         }
 
         body {
@@ -170,14 +176,19 @@
 
         /* Components */
         .btn {
-            padding: 0.5rem 1rem;
+            padding: 0.625rem 1.25rem;
             border: none;
-            border-radius: 0.375rem;
+            border-radius: var(--radius);
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             background-color: var(--border);
             color: var(--text-main);
-            transition: 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
         }
 
         .btn-primary {
@@ -209,12 +220,13 @@
         }
 
         .input {
-            padding: 0.5rem;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            background: var(--bg-body);
+            padding: 0.625rem;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-card);
             color: var(--text-main);
             width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .input:focus {
@@ -224,9 +236,10 @@
 
         .card {
             background: var(--bg-card);
-            padding: 1rem;
-            border-radius: 0.5rem;
+            padding: 1.25rem;
+            border-radius: var(--radius);
             box-shadow: var(--shadow);
+            border: 1px solid var(--border);
         }
 
         /* Layout */
@@ -249,21 +262,28 @@
         }
 
         .nav-item {
-            padding: 1rem;
+            padding: 0.875rem 1rem;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 1rem;
             color: var(--text-muted);
             text-decoration: none;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
+            border-radius: var(--radius);
+            margin: 0.125rem 0.5rem;
+            font-weight: 500;
         }
 
-        .nav-item:hover,
+        .nav-item:hover {
+            color: var(--text-main);
+            background: var(--bg-body);
+        }
+
         .nav-item.active {
             background: var(--primary-light);
             color: var(--primary);
-            border-right: 3px solid var(--primary);
+            font-weight: 600;
         }
 
         .sidebar-header {
@@ -485,7 +505,16 @@
             max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
-            border-radius: 0.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal.open .modal-content {
+            transform: scale(1);
+            opacity: 1;
         }
 
         .modal-header {
@@ -615,6 +644,9 @@
                 </a>
                 <a class="nav-item" data-view="reports" onclick="App.router.navigate('reports')">
                     <span>📈</span> Reports
+                </a>
+                <a class="nav-item" data-view="expenses" onclick="App.router.navigate('expenses')">
+                    <span>💸</span> Expenses
                 </a>
                 <div style="flex:1"></div>
                 <a class="nav-item" data-view="settings" onclick="App.router.navigate('settings')">
@@ -809,9 +841,80 @@
                     <button class="btn" onclick="App.reports.render('payment')"
                         style="background-color: #4caf50; color: white;">Payment Mode</button>
                     <button class="btn btn-danger" onclick="App.reports.render('lowstock')">Low Stock</button>
+                    <button class="btn" onclick="App.reports.render('expense')"
+                        style="background-color: #dc2626; color: white;">💸 Expense Report</button>
                 </div>
                 <div id="report-content" class="card p-4">
                     <p>Select a report type above.</p>
+                </div>
+            </div>
+
+            <!-- ===== EXPENSES VIEW ===== -->
+            <div id="view-expenses" class="view hidden">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <label class="font-bold">Filter:</label>
+                        <input type="text" id="exp-filter-date" class="input" placeholder="YYYY-MM-DD or YYYY-MM"
+                            style="width:180px" value="" onchange="App.expenses.renderTable(this.value)">
+                    </div>
+                    <button class="btn btn-primary" onclick="App.expenses.openModal()">+ Add Expense</button>
+                </div>
+                <div id="exp-summary" class="flex gap-4 mb-4"></div>
+                <div class="table-container">
+                    <table id="expenses-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Expense Modal -->
+            <div id="expense-modal" class="modal">
+                <div class="modal-content" style="max-width:440px">
+                    <div class="modal-header">
+                        <h3 id="expense-modal-title">Add Expense</h3>
+                        <button class="btn" onclick="App.expenses.closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body flex flex-col gap-3">
+                        <input type="hidden" id="exp-id">
+                        <div class="flex flex-col gap-1">
+                            <label>Date</label>
+                            <input type="date" id="exp-date" class="input">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label>Category</label>
+                            <select id="exp-category" class="input">
+                                <option>Rent</option>
+                                <option>Salary</option>
+                                <option>Electricity</option>
+                                <option>Transport</option>
+                                <option>Supplies</option>
+                                <option>Marketing</option>
+                                <option>Maintenance</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label>Description / Notes</label>
+                            <input type="text" id="exp-desc" class="input" placeholder="e.g. Monthly shop rent">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label>Amount (₹)</label>
+                            <input type="number" id="exp-amount" class="input" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="modal-footer flex gap-2 justify-end">
+                        <button class="btn" onclick="App.expenses.closeModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="App.expenses.save()">Save Expense</button>
+                    </div>
                 </div>
             </div>
 
@@ -869,36 +972,38 @@
     </div>
 
     <!-- Modals -->
-    <div id="modal-weight" class="modal">
+    <div id="modal-measure" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
-                <h3>Select Weight</h3><span class="cursor-pointer font-bold"
-                    onclick="App.router.hideModal('modal-weight')">X</span>
+                <h3 id="measure-modal-title">Enter Quantity</h3><span class="cursor-pointer font-bold"
+                    onclick="App.router.hideModal('modal-measure')">X</span>
             </div>
-            <div class="modal-body flex flex-col gap-4 text-center">
-                <input type="hidden" id="weight-prod-id">
+            <div id="measure-quick-btns" class="modal-body flex flex-col gap-4 text-center">
+                <input type="hidden" id="measure-prod-id">
                 <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
                     <button class="btn input"
-                        onclick="document.getElementById('weight-grams').value = 100">100g</button>
+                        onclick="document.getElementById('measure-input').value = 100">100</button>
                     <button class="btn input"
-                        onclick="document.getElementById('weight-grams').value = 200">200g</button>
+                        onclick="document.getElementById('measure-input').value = 250">250</button>
                     <button class="btn input"
-                        onclick="document.getElementById('weight-grams').value = 250">250g</button>
+                        onclick="document.getElementById('measure-input').value = 500">500</button>
                     <button class="btn input"
-                        onclick="document.getElementById('weight-grams').value = 500">500g</button>
-                    <button class="btn input" onclick="document.getElementById('weight-grams').value = 1000">1
-                        Kg</button>
+                        onclick="document.getElementById('measure-input').value = 1000">1000</button>
+                    <button class="btn input"
+                        onclick="document.getElementById('measure-input').value = 2500">2500</button>
+                    <button class="btn input"
+                        onclick="document.getElementById('measure-input').value = 5000">5000</button>
                 </div>
                 <div class="flex gap-2 items-center justify-center">
-                    <label class="text-xs text-muted">Or enter exact grams:</label>
-                    <input id="weight-grams" type="number" class="input text-center font-bold" placeholder="Grams"
-                        style="width: 100px; font-size: 1.2rem;">
-                    <span class="text-xs">g</span>
+                    <label id="measure-label" class="text-xs text-muted">Enter quantity:</label>
+                    <input id="measure-input" type="number" class="input text-center font-bold" placeholder="0"
+                        style="width: 120px; font-size: 1.2rem;">
+                    <span id="measure-unit-suffix" class="text-xs font-bold"></span>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn" onclick="App.router.hideModal('modal-weight')">Cancel</button>
-                <button class="btn btn-primary" onclick="App.pos.confirmWeight()">Add to Cart</button>
+                <button class="btn" onclick="App.router.hideModal('modal-measure')">Cancel</button>
+                <button class="btn btn-primary" onclick="App.pos.confirmMeasure()">Add to Cart</button>
             </div>
         </div>
     </div>
@@ -919,7 +1024,17 @@
                     <select id="prod-cat" class="input flex-1"></select>
                     <select id="prod-unit" class="input flex-1">
                         <option value="pcs">Pieces (pcs)</option>
-                        <option value="kg">Weighable (kg/g)</option>
+                        <option value="kg">Kilogram (kg)</option>
+                        <option value="g">Gram (g)</option>
+                        <option value="ltr">Litre (ltr)</option>
+                        <option value="ml">Millilitre (ml)</option>
+                        <option value="mtr">Meter (mtr)</option>
+                        <option value="ft">Feet (ft)</option>
+                        <option value="box">Box</option>
+                        <option value="pack">Pack</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="set">Set</option>
+                        <option value="unit">Unit</option>
                     </select>
                 </div>
                 <div class="flex gap-2">
@@ -1288,6 +1403,7 @@
                     if (viewName === 'settings') App.settings.load();
                     if (viewName === 'pos') App.pos.renderProducts();
                     if (viewName === 'dashboard') App.dashboard.refresh();
+                    if (viewName === 'expenses') App.expenses.renderTable();
 
                     // Mobile sidebar close
                     const side = document.getElementById('sidebar');
@@ -1564,7 +1680,20 @@
                                     name: name,
                                     brand: row['Brand'] || '',
                                     category_id: catId,
-                                    unit: String(row['Unit'] || '').toLowerCase() === 'kg' ? 'kg' : 'pcs',
+                                    unit: (() => {
+                                        const u = String(row['Unit'] || '').toLowerCase();
+                                        if (['kg', 'kilogram', 'kilo'].includes(u)) return 'kg';
+                                        if (['g', 'gram', 'grams', 'gm'].includes(u)) return 'g';
+                                        if (['ltr', 'litre', 'liter', 'litres'].includes(u)) return 'ltr';
+                                        if (['ml', 'millilitre', 'milliliter'].includes(u)) return 'ml';
+                                        if (['mtr', 'meter', 'metre', 'meters'].includes(u)) return 'mtr';
+                                        if (['ft', 'feet', 'foot'].includes(u)) return 'ft';
+                                        if (['box', 'boxes'].includes(u)) return 'box';
+                                        if (['pack', 'packet', 'pk'].includes(u)) return 'pack';
+                                        if (u === 'bottle') return 'bottle';
+                                        if (u === 'set') return 'set';
+                                        return 'pcs';
+                                    })(),
                                     barcode: String(row['Barcode'] || ''),
                                     cost: parseFloat(row['Cost Price'] || 0),
                                     price: parseFloat(row['Selling Price'] || row['Price'] || 0),
@@ -1832,10 +1961,23 @@
                     const prod = Store.get('products', []).find(p => p.id === pid);
                     if (!prod) return;
 
-                    if (prod.unit === 'kg' && overrideQty === null) {
-                        document.getElementById('weight-prod-id').value = pid;
-                        document.getElementById('weight-grams').value = '';
-                        App.router.showModal('modal-weight');
+                    const measureUnits = ['kg', 'g', 'ltr', 'ml', 'mtr', 'ft'];
+                    if (measureUnits.includes(prod.unit) && overrideQty === null) {
+                        document.getElementById('measure-prod-id').value = pid;
+                        document.getElementById('measure-input').value = '';
+
+                        const unitLabels = {
+                            'kg': 'Enter grams (g):', 'g': 'Enter grams (g):',
+                            'ltr': 'Enter millilitres (ml):', 'ml': 'Enter millilitres (ml):',
+                            'mtr': 'Enter meters (m):', 'ft': 'Enter feet (ft):'
+                        };
+                        const unitSuffixes = { 'kg': 'g', 'g': 'g', 'ltr': 'ml', 'ml': 'ml', 'mtr': 'm', 'ft': 'ft' };
+
+                        document.getElementById('measure-modal-title').innerText = `Measure ${prod.name}`;
+                        document.getElementById('measure-label').innerText = unitLabels[prod.unit] || 'Enter quantity:';
+                        document.getElementById('measure-unit-suffix').innerText = unitSuffixes[prod.unit] || '';
+
+                        App.router.showModal('modal-measure');
                         return;
                     }
 
@@ -1853,24 +1995,33 @@
 
                     App.pos.renderCart();
                 },
-                confirmWeight: () => {
-                    const pid = document.getElementById('weight-prod-id').value;
-                    const grams = parseFloat(document.getElementById('weight-grams').value);
-                    if (isNaN(grams) || grams <= 0) {
-                        alert("Please enter a valid weight in grams.");
+                confirmMeasure: () => {
+                    const pid = document.getElementById('measure-prod-id').value;
+                    const val = parseFloat(document.getElementById('measure-input').value);
+                    if (isNaN(val) || val <= 0) {
+                        alert("Please enter a valid quantity.");
                         return;
                     }
-                    const kg = grams / 1000;
-                    App.router.hideModal('modal-weight');
-                    App.pos.addToCart(pid, kg);
+
+                    const prod = Store.get('products', []).find(p => p.id === pid);
+                    if (!prod) return;
+
+                    let finalQty = val;
+                    if (prod.unit === 'kg' || prod.unit === 'ltr') {
+                        finalQty = val / 1000;
+                    }
+
+                    App.router.hideModal('modal-measure');
+                    App.pos.addToCart(pid, finalQty);
                 },
                 renderCart: () => {
                     const container = document.getElementById('pos-cart-items');
                     if (!container) return;
 
                     container.innerHTML = App.pos.cart.map((item, idx) => {
-                        const isKg = item.unit === 'kg';
-                        const displayQty = isKg ? `${item.qty} kg` : item.qty;
+                        const measureUnits = ['kg', 'g', 'ltr', 'ml', 'mtr', 'ft'];
+                        const isMeasure = measureUnits.includes(item.unit);
+                        const displayQty = isMeasure ? `${item.qty} ${item.unit}` : item.qty;
                         return `
                         <div class="cart-item">
                             <div>
@@ -1878,7 +2029,7 @@
                                 <div class="text-muted text-xs">${Utils.formatCurrency(item.price)} x ${displayQty}</div>
                             </div>
                             <div class="flex items-center gap-2">
-                                ${isKg ?
+                                ${isMeasure ?
                                 `<button class="btn btn-sm text-danger font-bold" onclick="App.pos.updateQty(${idx}, -${item.qty})">🗑️</button>` :
                                 `<button class="btn btn-sm" onclick="App.pos.updateQty(${idx}, -1)">-</button>
                                     <span>${item.qty}</span>
@@ -2700,12 +2851,18 @@
                         const profit = totalRev - totalCost;
                         const margin = totalRev > 0 ? ((profit / totalRev) * 100).toFixed(1) : 0;
 
+                        // Expenses for the same period
+                        const totalExpenses = Store.get('expenses', [])
+                            .filter(e => e.date.startsWith(m))
+                            .reduce((s, e) => s + e.amount, 0);
+                        const netProfit = profit - totalExpenses;
+
                         html = `<h3>Profit & Loss Statement</h3>
                                 <div class="flex items-center gap-2 mb-4">
                                     <label>Filter Date/Month:</label>
                                     <input type="text" value="${m}" onchange="App.reports.render('profit', this.value)" class="input" placeholder="YYYY-MM-DD" style="width:200px">
                                 </div>
-                                <div class="flex gap-4 my-2">
+                                <div class="flex gap-4 my-2 flex-wrap">
                                     <div class="card p-4 flex-1 text-center">
                                         <div class="text-muted">Total Revenue</div>
                                         <div class="text-2xl font-bold text-primary">${Utils.formatCurrency(totalRev)}</div>
@@ -2719,10 +2876,69 @@
                                         <div class="text-2xl font-bold text-success">${Utils.formatCurrency(profit)}</div>
                                         <small class="text-muted">${margin}% Margin</small>
                                     </div>
+                                    <div class="card p-4 flex-1 text-center" style="border:2px solid #dc2626;">
+                                        <div class="text-muted">Total Expenses</div>
+                                        <div class="text-2xl font-bold text-danger">${Utils.formatCurrency(totalExpenses)}</div>
+                                    </div>
+                                    <div class="card p-4 flex-1 text-center" style="border:2px solid ${netProfit >= 0 ? '#16a34a' : '#dc2626'};">
+                                        <div class="text-muted font-bold">Net Profit</div>
+                                        <div class="text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-danger'}">${Utils.formatCurrency(netProfit)}</div>
+                                        <small class="text-muted">After Expenses</small>
+                                    </div>
                                 </div>
                                 <div class="text-muted text-center mt-4">
-                                    * Profit is calculated based on (Selling Price - Cost Price) * Qty of sold items.
+                                    * Net Profit = Gross Profit - Total Expenses for the selected period.
                                 </div>`;
+                    }
+                    else if (type === 'expense') {
+                        const m = param || Utils.dateStr().substring(0, 7);
+                        const allExp = Store.get('expenses', []);
+                        const filtered = allExp.filter(e => e.date.startsWith(m));
+                        const totalExp = filtered.reduce((s, e) => s + e.amount, 0);
+
+                        // Category breakdown
+                        const byCategory = {};
+                        filtered.forEach(e => {
+                            if (!byCategory[e.category]) byCategory[e.category] = 0;
+                            byCategory[e.category] += e.amount;
+                        });
+
+                        html = `<h3>💸 Expense Report</h3>
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label>Filter Date/Month:</label>
+                                    <input type="text" value="${m}" onchange="App.reports.render('expense', this.value)" class="input" placeholder="YYYY-MM-DD or YYYY-MM" style="width:200px">
+                                </div>
+                                <div class="flex gap-4 mb-4 flex-wrap">
+                                    <div class="card p-4 flex-1 text-center" style="border:2px solid #dc2626;">
+                                        <div class="text-muted">Total Expenses</div>
+                                        <div class="text-2xl font-bold text-danger">${Utils.formatCurrency(totalExp)}</div>
+                                        <div class="text-xs text-muted">${filtered.length} records</div>
+                                    </div>
+                                </div>
+                                <h4 class="font-bold mb-2">Category Breakdown</h4>
+                                <table class="mb-4">
+                                    <thead><tr><th>Category</th><th>Total</th></tr></thead>
+                                    <tbody>
+                                        ${Object.keys(byCategory).sort().map(cat => `
+                                            <tr>
+                                                <td><span style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:4px;">${cat}</span></td>
+                                                <td class="font-bold text-danger">${Utils.formatCurrency(byCategory[cat])}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                                <h4 class="font-bold mb-2">All Expense Entries</h4>
+                                <table>
+                                    <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead>
+                                    <tbody>
+                                        ${[...filtered].sort((a, b) => b.date.localeCompare(a.date)).map(e => `
+                                            <tr>
+                                                <td>${e.date}</td>
+                                                <td><span style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:4px;">${e.category}</span></td>
+                                                <td>${e.desc || '-'}</td>
+                                                <td class="font-bold text-danger">${Utils.formatCurrency(e.amount)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>`;
                     }
 
                     content.innerHTML = html;
@@ -2825,6 +3041,132 @@
                     const activeReport = App.reports.lastRenderType || 'daily';
                     const activeParam = App.reports.lastRenderParam;
                     App.reports.render(activeReport, activeParam);
+                }
+            },
+
+            // =========================================
+            // EXPENSES MODULE
+            // =========================================
+            expenses: {
+                openModal: (id) => {
+                    document.getElementById('expense-modal').classList.add('open');
+                    const today = Utils.dateStr();
+                    if (id) {
+                        const exp = Store.get('expenses', []).find(e => e.id === id);
+                        if (!exp) return;
+                        document.getElementById('expense-modal-title').textContent = 'Edit Expense';
+                        document.getElementById('exp-id').value = exp.id;
+                        document.getElementById('exp-date').value = exp.date;
+                        document.getElementById('exp-category').value = exp.category;
+                        document.getElementById('exp-desc').value = exp.desc;
+                        document.getElementById('exp-amount').value = exp.amount;
+                    } else {
+                        document.getElementById('expense-modal-title').textContent = 'Add Expense';
+                        document.getElementById('exp-id').value = '';
+                        document.getElementById('exp-date').value = today;
+                        document.getElementById('exp-category').value = 'Rent';
+                        document.getElementById('exp-desc').value = '';
+                        document.getElementById('exp-amount').value = '';
+                    }
+                },
+                closeModal: () => {
+                    document.getElementById('expense-modal').classList.remove('open');
+                },
+                save: () => {
+                    const id = document.getElementById('exp-id').value;
+                    const date = document.getElementById('exp-date').value;
+                    const category = document.getElementById('exp-category').value;
+                    const desc = document.getElementById('exp-desc').value.trim();
+                    const amount = parseFloat(document.getElementById('exp-amount').value);
+
+                    if (!date) { alert('Please select a date.'); return; }
+                    if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+
+                    const expenses = Store.get('expenses', []);
+                    if (id) {
+                        // Edit
+                        const idx = expenses.findIndex(e => e.id === id);
+                        if (idx !== -1) {
+                            expenses[idx] = { id, date, category, desc, amount };
+                        }
+                    } else {
+                        // Add
+                        expenses.push({ id: Utils.id(), date, category, desc, amount });
+                    }
+                    Store.set('expenses', expenses);
+                    App.expenses.closeModal();
+                    App.expenses.renderTable();
+                },
+                delete: (id) => {
+                    if (!confirm('Delete this expense permanently?')) return;
+                    const expenses = Store.get('expenses', []).filter(e => e.id !== id);
+                    Store.set('expenses', expenses);
+                    App.expenses.renderTable();
+                },
+                renderTable: (filterVal) => {
+                    const filter = filterVal !== undefined ? filterVal
+                        : (document.getElementById('exp-filter-date')?.value || Utils.dateStr().substring(0, 7));
+
+                    // Keep filter input in sync
+                    const filterInput = document.getElementById('exp-filter-date');
+                    if (filterInput && filterVal !== undefined) filterInput.value = filter;
+
+                    const all = Store.get('expenses', []);
+                    const filtered = filter ? all.filter(e => e.date.startsWith(filter)) : all;
+                    const total = filtered.reduce((s, e) => s + e.amount, 0);
+
+                    // Summary
+                    const summary = document.getElementById('exp-summary');
+                    if (summary) {
+                        summary.innerHTML = `
+                            <div class="card p-5 flex-1 flex items-center gap-4" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none;">
+                                <div style="font-size: 2.5rem; opacity: 0.8;">💸</div>
+                                <div>
+                                    <div style="opacity: 0.9; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Total Period Expenses</div>
+                                    <div class="text-3xl font-bold">${Utils.formatCurrency(total)}</div>
+                                    <div class="text-xs" style="opacity: 0.7; margin-top: 0.25rem;">Based on ${filtered.length} transactions</div>
+                                </div>
+                            </div>`;
+                    }
+
+                    // Table
+                    const tbody = document.querySelector('#expenses-table tbody');
+                    if (!tbody) return;
+                    if (!filtered.length) {
+                        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No expenses found for this period.</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = [...filtered].sort((a, b) => b.date.localeCompare(a.date)).map(e => {
+                        const catColors = {
+                            'Rent': { bg: '#fee2e2', text: '#991b1b' },
+                            'Salary': { bg: '#dcfce7', text: '#166534' },
+                            'Electricity': { bg: '#fef9c3', text: '#854d0e' },
+                            'Transport': { bg: '#e0f2fe', text: '#075985' },
+                            'Supplies': { bg: '#f3e8ff', text: '#6b21a8' },
+                            'Marketing': { bg: '#ffedd5', text: '#9a3412' },
+                            'Maintenance': { bg: '#f1f5f9', text: '#334155' },
+                            'Other': { bg: '#f3f4f6', text: '#374151' }
+                        };
+                        const colors = catColors[e.category] || catColors['Other'];
+
+                        return `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="font-medium">${e.date}</td>
+                            <td>
+                                <span class="badge" style="background:${colors.bg}; color:${colors.text}; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600;">
+                                    ${e.category}
+                                </span>
+                            </td>
+                            <td class="text-muted italic">${e.desc || '-'}</td>
+                            <td class="font-bold text-danger">${Utils.formatCurrency(e.amount)}</td>
+                            <td>
+                                <div class="flex gap-1">
+                                    <button class="btn btn-sm text-primary" style="background: var(--primary-light)" onclick="App.expenses.openModal('${e.id}')" title="Edit">✏️</button>
+                                    <button class="btn btn-sm text-danger" style="background: #fee2e2" onclick="App.expenses.delete('${e.id}')" title="Delete">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }).join('');
                 }
             }
         };
