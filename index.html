@@ -965,6 +965,9 @@
                             <input id="set-fb-shopid" class="input" placeholder="Unique Shop ID (e.g. MyShop01)">
                             <button class="btn" style="background-color: var(--primary-light); color: var(--primary);"
                                 onclick="App.settings.saveFirebase()">Enable / Update Sync</button>
+                            <button id="push-btn" class="btn hidden"
+                                style="background-color: var(--warning-light); color: var(--warning);"
+                                onclick="Store.syncAllToCloud()">Push Current Data to Cloud ⬆️</button>
                         </div>
                         <hr class="border-t my-4">
                     </div>
@@ -1340,6 +1343,8 @@
 
                     if (statusEl) statusEl.innerHTML = `Status: <span class="text-primary">Online / Syncing (${shopId})</span>`;
                     Store.fbReady = true;
+                    const pushBtn = document.getElementById('push-btn');
+                    if (pushBtn) pushBtn.classList.remove('hidden');
 
                     // Real-time listener
                     db.ref(`shops/${shopId}`).on('value', (snapshot) => {
@@ -1376,6 +1381,21 @@
                     const statusEl = document.getElementById('sync-status');
                     if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">Sync Error: ${e.message}</span>`;
                 }
+            },
+
+            syncAllToCloud: () => {
+                if (!Store.fbReady) return;
+                if (!confirm("This will upload all current data to the cloud. If you have data already in the cloud, it will be overwritten. Proceed?")) return;
+
+                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
+                const shopId = Store.get('fb_shopid', 'default');
+                const db = firebase.database();
+
+                keys.forEach(key => {
+                    const val = Store.get(key, null);
+                    if (val) db.ref(`shops/${shopId}/${key}`).set(val);
+                });
+                alert("Success! All data pushed to cloud. Other devices will now see this data.");
             },
 
             init: () => new Promise((resolve, reject) => {
