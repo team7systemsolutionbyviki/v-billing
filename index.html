@@ -953,6 +953,16 @@
                     <button class="btn btn-primary" onclick="App.settings.save()">Save Settings</button>
 
                     <hr class="border-t my-4">
+                    <h3 class="font-bold text-danger">Storage Management</h3>
+                    <div id="storage-info" class="text-xs mb-2">Calculating storage usage...</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="btn btn-warning" onclick="App.settings.optimizeImages()">Compress Current
+                            Images</button>
+                        <button class="btn btn-danger" onclick="App.settings.clearOldInvoices()">Clear Invoices (>3
+                            Months)</button>
+                    </div>
+
+                    <hr class="border-t my-4">
                     <h3 class="font-bold">Data Management</h3>
                     <div class="flex gap-2 flex-wrap">
                         <button class="btn btn-success" onclick="App.settings.backup()">Full Backup (JSON)</button>
@@ -1237,66 +1247,143 @@
                 reader.onload = (e) => resolve(e.target.result);
                 reader.onerror = () => resolve(null);
                 reader.readAsDataURL(file);
+            }),
+            compressImage: (base64, maxWidth = 400, quality = 0.7) => new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(base64);
             })
         };
 
         const Store = {
+            cache: {},
+            db: null,
+            DB_NAME: 'vBillingDB',
+            STORE_NAME: 'kv',
+
             get: (key, def) => {
-                try {
-                    const val = localStorage.getItem('cosmatic_' + key);
-                    if (val === null || val === undefined) return def;
-                    return JSON.parse(val);
-                } catch (e) {
-                    console.error("Store Error", e);
-                    return def;
-                }
+                const val = Store.cache['cosmatic_' + key];
+                if (val === undefined || val === null) return def;
+                return val;
             },
+
             set: (key, val) => {
-                try {
+                Store.cache['cosmatic_' + key] = val;
+                // Background update
+                if (Store.db) {
+                    const tx = Store.db.transaction(Store.STORE_NAME, 'readwrite');
+                    tx.objectStore(Store.STORE_NAME).put(val, 'cosmatic_' + key);
+                } else {
+                    // Fallback to localStorage if DB not ready (unlikely)
                     localStorage.setItem('cosmatic_' + key, JSON.stringify(val));
-                } catch (e) {
-                    alert("Storage Error: " + e.message);
                 }
             },
-            init: () => {
-                const users = Store.get('users', []);
-                // Ensure Default Users Exist
-                let modified = false;
-                if (!users.find(u => u.id === 'viki')) {
-                    users.push({ id: 'viki', name: 'VIKI', role: 'admin', pin: '1101', is_super: true });
-                    modified = true;
-                }
-                if (!users.find(u => u.id === 'admin')) {
-                    users.push({ id: 'admin', name: 'Administrator', role: 'admin', pin: '1234' });
-                    modified = true;
-                }
-                if (!users.find(u => u.id === 'staff1')) {
-                    users.push({ id: 'staff1', name: 'Staff Member', role: 'staff', pin: '0000' });
-                    modified = true;
-                }
-                if (modified) Store.set('users', users);
 
-                // Initialize Defaults if missing
-                if (Store.get('shop_config', null) === null) {
-                    Store.set('shop_config', { name: 'v-billing', address: 'City Center', phone: '9876543210', gst_default: 18, footer: 'Thank you for visiting!' });
-                }
-                if (Store.get('categories', []).length === 0) {
-                    Store.set('categories', [{ id: 'c1', name: 'Lipstick', color: '#ffcccb' }, { id: 'c2', name: 'Skincare', color: '#d1e7dd' }, { id: 'c3', name: 'Dry Fruits & Nuts', color: '#fcd34d' }]);
+            init: () => new Promise((resolve, reject) => {
+                const request = indexedDB.open(Store.DB_NAME, 1);
+
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(Store.STORE_NAME)) {
+                        db.createObjectStore(Store.STORE_NAME);
+                    }
+                };
+
+                request.onsuccess = async (e) => {
+                    Store.db = e.target.result;
+
+                    // Load all data into cache
+                    const tx = Store.db.transaction(Store.STORE_NAME, 'readonly');
+                    const store = tx.objectStore(Store.STORE_NAME);
+                    const getAllKeys = store.getAllKeys();
+
+                    getAllKeys.onsuccess = () => {
+                        const keys = getAllKeys.result;
+                        const getAllValues = store.getAll();
+
+                        getAllValues.onsuccess = async () => {
+                            const values = getAllValues.result;
+                            keys.forEach((key, i) => {
+                                Store.cache[key] = values[i];
+                            });
+
+                            // Check for migration
+                            if (!Store.cache['migration_complete']) {
+                                await Store.migrateFromLocalStorage();
+                            }
+
+                            // Ensure Default Users Exist
+                            const users = Store.get('users', []);
+                            let modified = false;
+                            if (!users.find(u => u.id === 'viki')) {
+                                users.push({ id: 'viki', name: 'VIKI', role: 'admin', pin: '1101', is_super: true });
+                                modified = true;
+                            }
+                            if (!users.find(u => u.id === 'admin')) {
+                                users.push({ id: 'admin', name: 'Administrator', role: 'admin', pin: '1234' });
+                                modified = true;
+                            }
+                            if (modified) Store.set('users', users);
+
+                            if (Store.get('shop_config', null) === null) {
+                                Store.set('shop_config', { name: 'v-billing', address: 'City Center', phone: '9876543210', gst_default: 18, footer: 'Thank you for visiting!' });
+                            }
+                            if (Store.get('categories', []).length === 0) {
+                                Store.set('categories', [{ id: 'c1', name: 'Lipstick', color: '#ffcccb' }, { id: 'c2', name: 'Skincare', color: '#d1e7dd' }, { id: 'c3', name: 'Dry Fruits & Nuts', color: '#fcd34d' }]);
+                            }
+
+                            resolve();
+                        };
+                    };
+                };
+
+                request.onerror = (e) => reject(e.target.error);
+            }),
+
+            migrateFromLocalStorage: async () => {
+                console.log("Starting migration from localStorage to IndexedDB...");
+                const tx = Store.db.transaction(Store.STORE_NAME, 'readwrite');
+                const store = tx.objectStore(Store.STORE_NAME);
+
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('cosmatic_')) {
+                        try {
+                            const val = JSON.parse(localStorage.getItem(key));
+                            Store.cache[key] = val;
+                            store.put(val, key);
+                        } catch (e) { console.error("Migration error for key: " + key, e); }
+                    }
                 }
 
-                // Ensure arrays exist
-                if (!localStorage.getItem('cosmatic_products')) Store.set('products', []);
-                if (!localStorage.getItem('cosmatic_customers')) Store.set('customers', []);
-                if (!localStorage.getItem('cosmatic_invoices')) Store.set('invoices', []);
+                Store.cache['migration_complete'] = true;
+                store.put(true, 'migration_complete');
+                console.log("Migration complete.");
             }
         };
 
         const App = {
             user: null,
 
-            init: () => {
+            init: async () => {
                 try {
-                    Store.init();
+                    await Store.init();
                     App.auth.check();
                     App.ui.init();
                 } catch (e) {
@@ -1436,7 +1523,8 @@
                         imgInput.addEventListener('change', async (e) => {
                             if (e.target.files[0]) {
                                 try {
-                                    App.products.tempImage = await Utils.readFile(e.target.files[0]);
+                                    const raw = await Utils.readFile(e.target.files[0]);
+                                    App.products.tempImage = await Utils.compressImage(raw);
                                 } catch (err) { console.error(err); }
                             }
                         });
@@ -2411,6 +2499,58 @@
                         const img = document.getElementById('set-upi-preview');
                         img.src = c.upi_qr;
                         img.style.display = 'block';
+                    }
+                    App.settings.updateStorageInfo();
+                },
+                updateStorageInfo: () => {
+                    const info = document.getElementById('storage-info');
+                    if (!info) return;
+                    let total = 0;
+                    // Calculate from Store.cache
+                    for (let x in Store.cache) {
+                        if (Store.cache.hasOwnProperty(x)) {
+                            total += (JSON.stringify(Store.cache[x]).length * 2);
+                        }
+                    }
+                    const mb = (total / (1024 * 1024)).toFixed(2);
+                    info.innerHTML = `Approximate Usage: <b>${mb} MB</b> / Unlimited (was 5MB)`;
+                },
+                optimizeImages: async () => {
+                    const products = Store.get('products', []);
+                    let count = 0;
+                    if (confirm(`This will compress ${products.length} product images to save space. Proceed?`)) {
+                        for (let p of products) {
+                            if (p.image && p.image.startsWith('data:image')) {
+                                p.image = await Utils.compressImage(p.image);
+                                count++;
+                            }
+                        }
+                        Store.set('products', products);
+                        alert(`Optimized ${count} images.`);
+                        App.settings.updateStorageInfo();
+                        App.products.renderTable();
+                    }
+                },
+                clearOldInvoices: () => {
+                    const invoices = Store.get('invoices', []);
+                    const threeMonthsAgo = new Date();
+                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+                    const filtered = invoices.filter(inv => {
+                        const date = new Date(inv.date);
+                        return date >= threeMonthsAgo;
+                    });
+
+                    const removed = invoices.length - filtered.length;
+                    if (removed === 0) {
+                        alert("No invoices older than 3 months found.");
+                        return;
+                    }
+
+                    if (confirm(`Found ${removed} invoices older than 3 months. Are you sure you want to delete them? Make sure you have a backup.`)) {
+                        Store.set('invoices', filtered);
+                        alert(`Deleted ${removed} old invoices.`);
+                        App.settings.updateStorageInfo();
                     }
                 },
                 save: async () => {
