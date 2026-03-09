@@ -1384,19 +1384,38 @@
                 }
             },
 
-            syncAllToCloud: () => {
+            syncAllToCloud: async () => {
                 if (!Store.fbReady) return;
                 if (!confirm("This will upload all current data to the cloud. If you have data already in the cloud, it will be overwritten. Proceed?")) return;
 
                 const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
                 const shopId = Store.get('fb_shopid', 'default');
                 const db = firebase.database();
+                let successCount = 0;
 
-                keys.forEach(key => {
-                    const val = Store.get(key, null);
-                    if (val) db.ref(`shops/${shopId}/${key}`).set(val);
-                });
-                alert("Success! All data pushed to cloud. Other devices will now see this data.");
+                for (const key of keys) {
+                    try {
+                        const val = Store.get(key, null);
+                        if (val) {
+                            // Check size (Firebase limit is around 10MB per set, but base64 can be bulky)
+                            const size = JSON.stringify(val).length;
+                            if (size > 5 * 1024 * 1024) {
+                                console.warn(`Data for ${key} is large: ${Math.round(size / 1024 / 1024)}MB`);
+                            }
+                            await db.ref(`shops/${shopId}/${key}`).set(val);
+                            successCount++;
+                        }
+                    } catch (e) {
+                        console.error(`Error syncing ${key}:`, e);
+                        alert(`❌ Failed to sync ${key}: ${e.message}\nThis often happens if permissions or internet is unstable.`);
+                    }
+                }
+
+                if (successCount === keys.length) {
+                    alert("✅ Success! All data pushed to cloud. Other devices will now see this data.");
+                } else {
+                    alert(`⚠️ Sync partially complete. ${successCount}/${keys.length} items synced. Check the console for errors.`);
+                }
             },
 
             init: () => new Promise((resolve, reject) => {
