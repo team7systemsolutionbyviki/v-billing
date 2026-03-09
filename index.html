@@ -1077,9 +1077,19 @@
                     <input id="prod-stock" type="number" class="input" placeholder="Stock Qty">
                 </div>
                 <input id="prod-expiry" type="date" class="input" placeholder="Expiry Date">
-                <div>
-                    <label>Image</label>
-                    <input type="file" id="prod-img-input" class="input" accept="image/*">
+                <div class="flex flex-col gap-2">
+                    <label>Product Image</label>
+                    <div class="flex gap-2">
+                        <input type="file" id="prod-img-input" class="input flex-1" accept="image/*">
+                        <button class="btn btn-primary" onclick="App.camera.start()" title="Take Photo">📷</button>
+                    </div>
+                    <div id="prod-img-preview-container" class="hidden text-center p-2 border rounded"
+                        style="background: var(--bg-body);">
+                        <img id="prod-img-preview"
+                            style="max-width: 100%; max-height: 150px; object-fit: contain; border-radius: 4px;">
+                        <button class="btn btn-sm text-danger w-full mt-2" onclick="App.products.removeImage()">🗑️
+                            Remove Image</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1197,9 +1207,20 @@
                     <button class="btn input" onclick="App.pos.setPayMode('Cash')">💵 Cash</button>
                     <button class="btn input" onclick="App.pos.setPayMode('UPI')">📱 UPI</button>
                 </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-top: -5px;">
+                    <button class="btn input" onclick="App.pos.setPayMode('Debit Card')">💳 Debit</button>
+                    <button class="btn input" onclick="App.pos.setPayMode('Credit Card')">💳 Credit</button>
+                </div>
+                <button class="btn input w-full"
+                    style="background-color: #fff3e0; color: #e65100; border: 1px solid #ffe0b2;"
+                    onclick="App.pos.setPayMode('Customer Credit')">🔴 Send to Customer Debt / Credit</button>
+
                 <select id="pay-mode" class="input text-center" onchange="App.pos.setPayMode(this.value)">
                     <option>Cash</option>
                     <option>UPI</option>
+                    <option>Debit Card</option>
+                    <option>Credit Card</option>
+                    <option>Customer Credit</option>
                 </select>
                 <div class="flex gap-2">
                     <select id="pay-discount-type" class="input" style="width: 70px;">
@@ -1228,7 +1249,23 @@
         </div>
     </div>
 
-    <!-- Receipt Template (Hidden) -->
+    <div id="modal-camera" class="modal">
+        <div class="modal-content" style="max-width: 500px">
+            <div class="modal-header">
+                <h3>Take Photo</h3><span class="cursor-pointer font-bold" onclick="App.camera.stop()">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <video id="camera-video" autoplay playsinline
+                    style="width: 100%; background: black; border-radius: 8px; transform: scaleX(1);"></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+            </div>
+            <div class="modal-footer justify-center gap-4">
+                <button class="btn" onclick="App.camera.stop()">Cancel</button>
+                <button class="btn btn-primary" style="padding: 0.75rem 2rem;" onclick="App.camera.capture()">📸 Capture
+                    Photo</button>
+            </div>
+        </div>
+    </div>
     <div id="receipt-print-area"></div>
 
     <!-- Floating WhatsApp -->
@@ -1319,7 +1356,9 @@
                     if (key.startsWith('fb_')) return; // Don't sync config keys to cloud
                     const db = firebase.database();
                     const shopId = Store.get('fb_shopid', 'default');
-                    db.ref(`shops/${shopId}/${key}`).set(val);
+                    // Firebase rejects undefined. Strip them.
+                    const safeVal = JSON.parse(JSON.stringify(val));
+                    db.ref(`shops/${shopId}/${key}`).set(safeVal);
                 }
             },
 
@@ -1388,36 +1427,32 @@
                 if (!Store.fbReady) return;
                 if (!confirm("This will upload all current data to the cloud. If you have data already in the cloud, it will be overwritten. Proceed?")) return;
 
-                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
+                const keys = {
+                    'products': [], 'categories': [], 'customers': [],
+                    'invoices': [], 'expenses': [], 'shop_config': {}
+                };
                 const shopId = Store.get('fb_shopid', 'default');
                 const db = firebase.database();
                 let successCount = 0;
+                const keyList = Object.keys(keys);
 
-                for (const key of keys) {
+                for (const key of keyList) {
                     try {
-                        let val = Store.get(key, null);
-                        if (val) {
-                            // Firebase doesn't allow undefined. Convert to JSON and back to strip undefined, or use null.
-                            val = JSON.parse(JSON.stringify(val));
+                        let val = Store.get(key, keys[key]); // Use default if missing
+                        // Firebase doesn't allow undefined. Convert to JSON and back to strip undefined.
+                        val = JSON.parse(JSON.stringify(val));
 
-                            // Check size (Firebase limit is around 10MB per set, but base64 can be bulky)
-                            const size = JSON.stringify(val).length;
-                            if (size > 5 * 1024 * 1024) {
-                                console.warn(`Data for ${key} is large: ${Math.round(size / 1024 / 1024)}MB`);
-                            }
-                            await db.ref(`shops/${shopId}/${key}`).set(val);
-                            successCount++;
-                        }
+                        await db.ref(`shops/${shopId}/${key}`).set(val);
+                        successCount++;
                     } catch (e) {
                         console.error(`Error syncing ${key}:`, e);
-                        alert(`❌ Failed to sync ${key}: ${e.message}\nThis often happens if permissions or internet is unstable.`);
                     }
                 }
 
-                if (successCount === keys.length) {
-                    alert("✅ Success! All data pushed to cloud. Other devices will now see this data.");
+                if (successCount === keyList.length) {
+                    alert("✅ Success! All data pushed to cloud. Your mobile device will now stay in perfect sync.");
                 } else {
-                    alert(`⚠️ Sync partially complete. ${successCount}/${keys.length} items synced. Check the console for errors.`);
+                    alert(`⚠️ Sync partially complete. ${successCount}/${keyList.length} items synced. Check your internet connection.`);
                 }
             },
 
@@ -1663,7 +1698,9 @@
                             if (e.target.files[0]) {
                                 try {
                                     const raw = await Utils.readFile(e.target.files[0]);
-                                    App.products.tempImage = await Utils.compressImage(raw);
+                                    const compressed = await Utils.compressImage(raw);
+                                    App.products.tempImage = compressed;
+                                    App.products.updatePreview(compressed);
                                 } catch (err) { console.error(err); }
                             }
                         });
@@ -1716,8 +1753,58 @@
                 }
             },
 
+            camera: {
+                stream: null,
+                start: async () => {
+                    try {
+                        const constraints = { video: { facingMode: 'environment' } };
+                        App.camera.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        const video = document.getElementById('camera-video');
+                        video.srcObject = App.camera.stream;
+                        App.router.showModal('modal-camera');
+                    } catch (err) {
+                        console.error("Camera Error:", err);
+                        alert("Please allow camera permission to take photos.");
+                    }
+                },
+                stop: () => {
+                    if (App.camera.stream) {
+                        App.camera.stream.getTracks().forEach(t => t.stop());
+                        App.camera.stream = null;
+                    }
+                    App.router.hideModal('modal-camera');
+                },
+                capture: async () => {
+                    const video = document.getElementById('camera-video');
+                    const canvas = document.getElementById('camera-canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    const data = canvas.toDataURL('image/jpeg', 0.8);
+                    const compressed = await Utils.compressImage(data, 600, 0.7);
+                    App.products.tempImage = compressed;
+                    App.products.updatePreview(compressed);
+                    App.camera.stop();
+                }
+            },
+
             products: {
                 tempImage: null,
+                updatePreview: (src) => {
+                    const container = document.getElementById('prod-img-preview-container');
+                    const img = document.getElementById('prod-img-preview');
+                    if (src) {
+                        img.src = src;
+                        container.classList.remove('hidden');
+                    } else {
+                        container.classList.add('hidden');
+                    }
+                },
+                removeImage: () => {
+                    App.products.tempImage = ''; // Set to empty string to indicate removal
+                    document.getElementById('prod-img-input').value = '';
+                    App.products.updatePreview(null);
+                },
                 renderTable: () => {
                     const products = Store.get('products', []);
                     const cats = Store.get('categories', []);
@@ -1778,6 +1865,7 @@
                     document.getElementById('prod-img-input').value = '';
                     document.getElementById('prod-unit').value = 'pcs';
                     App.products.tempImage = null;
+                    App.products.updatePreview(null);
 
                     const cats = Store.get('categories', []);
                     document.getElementById('prod-cat').innerHTML = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -1808,7 +1896,7 @@
                         gst_percent: parseFloat(document.getElementById('prod-gst').value) || 0,
                         stock: parseInt(document.getElementById('prod-stock').value) || 0,
                         expiry: document.getElementById('prod-expiry').value,
-                        image: App.products.tempImage || (isNew ? '' : (products.find(p => p.id === id)?.image || ''))
+                        image: App.products.tempImage !== null ? App.products.tempImage : (isNew ? '' : (products.find(p => p.id === id)?.image || ''))
                     };
 
                     if (isNew) products.push(prod);
@@ -1836,6 +1924,9 @@
                     document.getElementById('prod-gst').value = p.gst_percent;
                     document.getElementById('prod-stock').value = p.stock;
                     document.getElementById('prod-expiry').value = p.expiry;
+
+                    App.products.tempImage = p.image || null;
+                    App.products.updatePreview(App.products.tempImage);
                 },
                 delete: (id) => {
                     if (confirm("Delete this product?")) {
@@ -2323,6 +2414,7 @@
                     document.getElementById('pay-total-display').textContent = Utils.formatCurrency(App.pos.checkoutTotal);
 
                     // Reset UI
+                    App.pos.calculatedDiscount = 0;
                     document.getElementById('pay-mode').value = 'Cash';
                     App.pos.setPayMode('Cash');
                     document.getElementById('pay-discount-val').value = '';
@@ -2369,6 +2461,17 @@
                         }
                     } else {
                         qrContainer.classList.add('hidden');
+                    }
+
+                    // Handle "Customer Credit" mode auto-settings
+                    if (mode === 'Customer Credit') {
+                        document.getElementById('pay-amount-paid').value = '0';
+                        App.pos.calculateChange();
+                    } else if (mode === 'Cash' || mode === 'UPI' || mode === 'Debit Card' || mode === 'Credit Card') {
+                        // Reset amount paid to full if switching back from Credit
+                        const finalTotal = App.pos.checkoutTotal - (App.pos.calculatedDiscount || 0);
+                        document.getElementById('pay-amount-paid').value = finalTotal.toFixed(2);
+                        App.pos.calculateChange();
                     }
                 },
                 calculateChange: () => {
