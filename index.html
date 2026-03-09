@@ -1369,6 +1369,7 @@
                             else if (currentView === 'categories') App.categories.renderList();
                             else if (currentView === 'customers') App.customers.renderTable();
                             else if (currentView === 'reports') App.reports.renderInvoiceTable();
+                            else if (currentView === 'settings') App.settings.load();
 
                             if (statusEl) statusEl.innerHTML = `Status: <span class="text-success">Online / Synced (${shopId}) - ${new Date().toLocaleTimeString()}</span>`;
                         } else {
@@ -2688,6 +2689,7 @@
                     if (fileInput.files[0]) {
                         try {
                             logo = await Utils.readFile(fileInput.files[0]);
+                            logo = await Utils.compressImage(logo, 300, 0.6); // Compress logo
                         } catch (e) { console.error(e); }
                     }
 
@@ -2697,6 +2699,7 @@
                     if (upiInput.files[0]) {
                         try {
                             upi_qr = await Utils.readFile(upiInput.files[0]);
+                            upi_qr = await Utils.compressImage(upi_qr, 300, 0.6); // Compress QR
                         } catch (e) { console.error(e); }
                     }
 
