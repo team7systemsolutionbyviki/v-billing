@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>v-billing</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -596,7 +598,7 @@
             <div class="text-center" style="margin-bottom: 2rem;">
                 <h1 class="text-2xl font-bold text-primary">v-billing</h1>
                 <p class="text-muted">Shop Billing System</p>
-                <div id="login-msg" class="text-muted text-xs">Default PIN: 1234</div>
+                <div id="login-msg" class="text-muted text-xs">Login with your PIN. (For Super Admin, use 🖊️)</div>
             </div>
             <form id="login-form" class="flex flex-col gap-4">
                 <div>
@@ -953,6 +955,19 @@
                     <button class="btn btn-primary" onclick="App.settings.save()">Save Settings</button>
 
                     <hr class="border-t my-4">
+                    <div id="set-fb-section" class="hidden">
+                        <h3 class="font-bold text-primary">Cloud Sync (Firebase)</h3>
+                        <div class="flex flex-col gap-2">
+                            <div id="sync-status" class="text-xs font-bold text-muted">Status: Not Configured</div>
+                            <input id="set-fb-apikey" class="input" placeholder="Firebase API Key">
+                            <input id="set-fb-dburl" class="input" placeholder="Database URL">
+                            <input id="set-fb-projectid" class="input" placeholder="Project ID">
+                            <input id="set-fb-shopid" class="input" placeholder="Unique Shop ID (e.g. MyShop01)">
+                            <button class="btn" style="background-color: var(--primary-light); color: var(--primary);"
+                                onclick="App.settings.saveFirebase()">Enable / Update Sync</button>
+                        </div>
+                        <hr class="border-t my-4">
+                    </div>
                     <h3 class="font-bold text-danger">Storage Management</h3>
                     <div id="storage-info" class="text-xs mb-2">Calculating storage usage...</div>
                     <div class="flex gap-2 flex-wrap">
@@ -1293,6 +1308,65 @@
                     // Fallback to localStorage if DB not ready (unlikely)
                     localStorage.setItem('cosmatic_' + key, JSON.stringify(val));
                 }
+
+                // Cloud Sync
+                if (Store.fbReady && !Store.isSyncing) {
+                    const db = firebase.database();
+                    const shopId = Store.get('fb_shopid', 'default');
+                    db.ref(`shops/${shopId}/${key}`).set(val);
+                }
+            },
+
+            initFirebase: () => {
+                const config = {
+                    apiKey: Store.get('fb_apikey', ''),
+                    databaseURL: Store.get('fb_dburl', ''),
+                    projectId: Store.get('fb_projectid', ''),
+                    storageBucket: `${Store.get('fb_projectid', '')}.appspot.com`
+                };
+
+                if (!config.apiKey || !config.databaseURL) return;
+
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(config);
+                    }
+                    const db = firebase.database();
+                    const shopId = Store.get('fb_shopid', 'default');
+                    const statusEl = document.getElementById('sync-status');
+
+                    if (statusEl) statusEl.innerHTML = `Status: <span class="text-primary">Online / Syncing (${shopId})</span>`;
+                    Store.fbReady = true;
+
+                    // Real-time listener
+                    db.ref(`shops/${shopId}`).on('value', (snapshot) => {
+                        const cloudData = snapshot.val();
+                        if (cloudData) {
+                            Store.isSyncing = true; // Prevent loop
+                            for (let key in cloudData) {
+                                const localVal = Store.cache['cosmatic_' + key];
+                                const cloudVal = cloudData[key];
+
+                                // Simple merge: if cloud is different, update local
+                                if (JSON.stringify(localVal) !== JSON.stringify(cloudVal)) {
+                                    Store.set(key, cloudVal);
+                                }
+                            }
+                            Store.isSyncing = false;
+
+                            // Refresh UI if necessary (e.g. if we are on a view that needs update)
+                            const currentView = App.router.currentView;
+                            if (currentView === 'pos') App.pos.render();
+                            else if (currentView === 'products') App.products.renderTable();
+                            else if (currentView === 'categories') App.categories.renderList();
+                        }
+                    });
+
+                } catch (e) {
+                    console.error("Firebase Init Error", e);
+                    const statusEl = document.getElementById('sync-status');
+                    if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">Sync Error: ${e.message}</span>`;
+                }
             },
 
             init: () => new Promise((resolve, reject) => {
@@ -1331,15 +1405,27 @@
                             // Ensure Default Users Exist
                             const users = Store.get('users', []);
                             let modified = false;
-                            if (!users.find(u => u.id === 'viki')) {
+                            let viki = users.find(u => u.id === 'viki');
+                            if (!viki) {
                                 users.push({ id: 'viki', name: 'VIKI', role: 'admin', pin: '1101', is_super: true });
                                 modified = true;
-                            }
-                            if (!users.find(u => u.id === 'admin')) {
-                                users.push({ id: 'admin', name: 'Administrator', role: 'admin', pin: '1234' });
+                            } else if (viki.pin !== '1101' || !viki.is_super) {
+                                viki.pin = '1101';
+                                viki.is_super = true;
                                 modified = true;
                             }
-                            if (modified) Store.set('users', users);
+                            let admin = users.find(u => u.id === 'admin');
+                            if (!admin) {
+                                users.push({ id: 'admin', name: 'Administrator', role: 'admin', pin: '1234' });
+                                modified = true;
+                            } else if (admin.pin !== '1234') {
+                                admin.pin = '1234';
+                                modified = true;
+                            }
+                            if (modified) {
+                                Store.set('users', users);
+                                console.log("Login credentials updated.");
+                            }
 
                             if (Store.get('shop_config', null) === null) {
                                 Store.set('shop_config', { name: 'v-billing', address: 'City Center', phone: '9876543210', gst_default: 18, footer: 'Thank you for visiting!' });
@@ -1384,6 +1470,7 @@
             init: async () => {
                 try {
                     await Store.init();
+                    Store.initFirebase();
                     App.auth.check();
                     App.ui.init();
                 } catch (e) {
@@ -1431,9 +1518,9 @@
                     let userId = document.getElementById('login-user-select').value;
                     // Check manual input if visible
                     if (!document.getElementById('login-user-manual').classList.contains('hidden')) {
-                        userId = document.getElementById('login-user-manual').value.toLowerCase();
+                        userId = document.getElementById('login-user-manual').value.trim().toLowerCase();
                     }
-                    const pin = document.getElementById('login-pin').value;
+                    const pin = document.getElementById('login-pin').value.trim();
                     const users = Store.get('users', []);
                     const user = users.find(u => u.id === userId && u.pin === pin);
 
@@ -2490,6 +2577,18 @@
                     document.getElementById('set-show-logo').checked = c.show_logo || false;
                     document.getElementById('set-show-gst').checked = c.show_gst !== false; // Default to true
                     document.getElementById('set-show-delivery').checked = c.show_delivery || false;
+
+                    document.getElementById('set-fb-apikey').value = Store.get('fb_apikey', '');
+                    document.getElementById('set-fb-dburl').value = Store.get('fb_dburl', '');
+                    document.getElementById('set-fb-projectid').value = Store.get('fb_projectid', '');
+                    document.getElementById('set-fb-shopid').value = Store.get('fb_shopid', '');
+
+                    // Super Admin Only: Cloud Sync Settings
+                    const fbSection = document.getElementById('set-fb-section');
+                    if (fbSection) {
+                        fbSection.classList.toggle('hidden', !App.user || !App.user.is_super);
+                    }
+
                     if (c.logo) {
                         const img = document.getElementById('set-logo-preview');
                         img.src = c.logo;
@@ -2587,6 +2686,25 @@
                     };
                     Store.set('shop_config', c);
                     alert('Settings Saved');
+                },
+                saveFirebase: () => {
+                    const apiKey = document.getElementById('set-fb-apikey').value.trim();
+                    const dbUrl = document.getElementById('set-fb-dburl').value.trim();
+                    const projectId = document.getElementById('set-fb-projectid').value.trim();
+                    const shopId = document.getElementById('set-fb-shopid').value.trim() || 'default';
+
+                    if (!apiKey || !dbUrl) {
+                        alert("Please enter at least API Key and Database URL.");
+                        return;
+                    }
+
+                    Store.set('fb_apikey', apiKey);
+                    Store.set('fb_dburl', dbUrl);
+                    Store.set('fb_projectid', projectId);
+                    Store.set('fb_shopid', shopId);
+
+                    alert("Firebase Settings Saved! Re-initializing Sync...");
+                    Store.initFirebase();
                 },
                 backup: () => {
                     try {
