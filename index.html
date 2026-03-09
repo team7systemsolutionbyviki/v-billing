@@ -1395,8 +1395,11 @@
 
                 for (const key of keys) {
                     try {
-                        const val = Store.get(key, null);
+                        let val = Store.get(key, null);
                         if (val) {
+                            // Firebase doesn't allow undefined. Convert to JSON and back to strip undefined, or use null.
+                            val = JSON.parse(JSON.stringify(val));
+
                             // Check size (Firebase limit is around 10MB per set, but base64 can be bulky)
                             const size = JSON.stringify(val).length;
                             if (size > 5 * 1024 * 1024) {
@@ -2703,7 +2706,7 @@
                 },
                 save: async () => {
                     // Handle Logo
-                    let logo = Store.get('shop_config', {}).logo;
+                    let logo = Store.get('shop_config', {}).logo || null;
                     const fileInput = document.getElementById('set-logo-input');
                     if (fileInput.files[0]) {
                         try {
@@ -2713,7 +2716,7 @@
                     }
 
                     // Handle UPI QR
-                    let upi_qr = Store.get('shop_config', {}).upi_qr;
+                    let upi_qr = Store.get('shop_config', {}).upi_qr || null;
                     const upiInput = document.getElementById('set-upi-input');
                     if (upiInput.files[0]) {
                         try {
