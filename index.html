@@ -968,6 +968,8 @@
                             <button id="push-btn" class="btn hidden"
                                 style="background-color: var(--warning-light); color: var(--warning);"
                                 onclick="Store.syncAllToCloud()">Push Current Data to Cloud ⬆️</button>
+                            <button id="health-btn" class="btn" onclick="App.settings.checkSyncHealth()"
+                                style="background-color: #e0f2fe; color: #0369a1;">Check Sync Health 🔍</button>
                         </div>
                         <hr class="border-t my-4">
                     </div>
@@ -1303,7 +1305,7 @@
                 reader.onerror = () => resolve(null);
                 reader.readAsDataURL(file);
             }),
-            compressImage: (base64, maxWidth = 400, quality = 0.7) => new Promise((resolve) => {
+            compressImage: (base64, maxWidth = 300, quality = 0.6) => new Promise((resolve) => {
                 const img = new Image();
                 img.src = base64;
                 img.onload = () => {
@@ -1333,6 +1335,7 @@
             STORE_NAME: 'kv',
             fbReady: false,
             isSyncing: false,
+            autoSyncInterval: null,
 
             get: (key, def) => {
                 const val = Store.cache['cosmatic_' + key];
@@ -1353,12 +1356,30 @@
 
                 // Cloud Sync
                 if (Store.fbReady && !Store.isSyncing) {
-                    if (key.startsWith('fb_')) return; // Don't sync config keys to cloud
+                    if (key.startsWith('fb_')) return;
                     const db = firebase.database();
                     const shopId = Store.get('fb_shopid', 'default');
-                    // Firebase rejects undefined. Strip them.
-                    const safeVal = JSON.parse(JSON.stringify(val));
-                    db.ref(`shops/${shopId}/${key}`).set(safeVal);
+
+                    try {
+                        const safeVal = JSON.parse(JSON.stringify(val));
+                        const size = JSON.stringify(safeVal).length;
+
+                        // Firebase has a 10MB limit (10 * 1024 * 1024 bytes)
+                        if (size > 10 * 1024 * 1024) {
+                            console.error(`Sync error: Data for ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Max 10MB.`);
+                            const statusEl = document.getElementById('sync-status');
+                            if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">⚠️ ${key} too large to sync!</span>`;
+                            return;
+                        }
+
+                        db.ref(`shops/${shopId}/${key}`).set(safeVal).catch(e => {
+                            console.error(`Firebase Set Error (${key}):`, e);
+                            const statusEl = document.getElementById('sync-status');
+                            if (statusEl) statusEl.innerHTML = `Status: <span class="text-warning">Sync Fail: ${key}</span>`;
+                        });
+                    } catch (e) {
+                        console.error("Sync Preparation Error:", e);
+                    }
                 }
             },
 
@@ -1416,6 +1437,14 @@
                         }
                     });
 
+                    // Hourly Auto-Sync
+                    if (!Store.autoSyncInterval) {
+                        console.log("Setting up hourly auto-sync...");
+                        Store.autoSyncInterval = setInterval(() => {
+                            console.log("Running scheduled hourly sync...");
+                            Store.syncAllToCloud(true);
+                        }, 60 * 60 * 1000); // 1 hour
+                    }
                 } catch (e) {
                     console.error("Firebase Init Error", e);
                     const statusEl = document.getElementById('sync-status');
@@ -1423,36 +1452,43 @@
                 }
             },
 
-            syncAllToCloud: async () => {
-                if (!Store.fbReady) return;
-                if (!confirm("This will upload all current data to the cloud. If you have data already in the cloud, it will be overwritten. Proceed?")) return;
-
-                const keys = {
-                    'products': [], 'categories': [], 'customers': [],
-                    'invoices': [], 'expenses': [], 'shop_config': {}
-                };
+            syncAllToCloud: async (isSilent = false) => {
+                if (!Store.fbReady) {
+                    if (!isSilent) alert("Cloud Sync is not configured or offline.");
+                    return;
+                }
                 const shopId = Store.get('fb_shopid', 'default');
+                if (!isSilent && !confirm(`This will PUSH all local data to the cloud for Shop ID: ${shopId}.\nExisting cloud data will be overwritten. Proceed?`)) return;
+
+                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
                 const db = firebase.database();
                 let successCount = 0;
-                const keyList = Object.keys(keys);
+                let totalSize = 0;
 
-                for (const key of keyList) {
+                for (const key of keys) {
                     try {
-                        let val = Store.get(key, keys[key]); // Use default if missing
-                        // Firebase doesn't allow undefined. Convert to JSON and back to strip undefined.
-                        val = JSON.parse(JSON.stringify(val));
+                        let val = Store.get(key, key === 'shop_config' ? {} : []);
+                        const safeVal = JSON.parse(JSON.stringify(val));
+                        const size = JSON.stringify(safeVal).length;
+                        totalSize += size;
 
-                        await db.ref(`shops/${shopId}/${key}`).set(val);
+                        if (size > 10 * 1024 * 1024) {
+                            if (!isSilent) alert(`❌ Error: ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Firebase limit is 10MB per key. Try optimizing images first.`);
+                            continue;
+                        }
+
+                        await db.ref(`shops/${shopId}/${key}`).set(safeVal);
                         successCount++;
                     } catch (e) {
                         console.error(`Error syncing ${key}:`, e);
                     }
                 }
 
-                if (successCount === keyList.length) {
-                    alert("✅ Success! All data pushed to cloud. Your mobile device will now stay in perfect sync.");
+                if (successCount === keys.length) {
+                    if (!isSilent) alert(`✅ Success! Data pushed to cloud (${(totalSize / 1024 / 1024).toFixed(2)} MB total).\nNow refresh the other device to see the changes.`);
+                    else console.log(`Auto-Sync Success: ${(totalSize / 1024 / 1024).toFixed(2)} MB synced at ${new Date().toLocaleTimeString()}`);
                 } else {
-                    alert(`⚠️ Sync partially complete. ${successCount}/${keyList.length} items synced. Check your internet connection.`);
+                    if (!isSilent) alert(`⚠️ Sync partially complete. ${successCount}/${keys.length} items synced. Check console for errors.`);
                 }
             },
 
@@ -2785,6 +2821,52 @@
                         App.products.renderTable();
                     }
                 },
+                checkSyncHealth: async () => {
+                    if (!Store.fbReady) {
+                        alert("❌ Firebase is not connected. Check your API Key and Database URL in Settings.");
+                        return;
+                    }
+                    const shopId = Store.get('fb_shopid', 'default');
+                    const db = firebase.database();
+                    const statusEl = document.getElementById('sync-status');
+                    if (statusEl) statusEl.innerHTML = `Status: <span class="text-primary">Checking Health...</span>`;
+
+                    try {
+                        const snapshot = await db.ref(`shops/${shopId}`).once('value');
+                        const data = snapshot.val();
+                        if (!data) {
+                            alert(`⚠️ Shop ID "${shopId}" exists but is EMPTY in the cloud.\n\nACTION: Use "Push Current Data to Cloud" to upload your data from this device.`);
+                        } else {
+                            let report = `✅ Sync Health Report\n------------------------\n📍 Shop ID: ${shopId}\n\n`;
+                            const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
+                            let outOfSync = 0;
+
+                            keys.forEach(k => {
+                                const localVal = Store.get(k, k === 'shop_config' ? {} : []);
+                                const cloudVal = data[k];
+                                const localSize = JSON.stringify(localVal).length;
+                                const cloudSize = cloudVal ? JSON.stringify(cloudVal).length : 0;
+
+                                report += `• ${k.toUpperCase()}:\n  Local: ${(localSize / 1024).toFixed(1)} KB | Cloud: ${(cloudSize / 1024).toFixed(1)} KB\n`;
+
+                                if (JSON.stringify(localVal) !== JSON.stringify(cloudVal)) {
+                                    outOfSync++;
+                                }
+                            });
+
+                            if (outOfSync > 0) {
+                                report += `\n⚠️ ${outOfSync} items are OUT OF SYNC.\n\nACTION: If this device has the correct data, click "Push Current Data to Cloud". If the cloud is correct, just wait a moment for auto-sync.`;
+                            } else {
+                                report += `\n✨ Everything is in perfect sync!`;
+                            }
+                            alert(report);
+                        }
+                        if (statusEl) statusEl.innerHTML = `Status: <span class="text-success">Online / Health OK (${shopId})</span>`;
+                    } catch (e) {
+                        alert(`❌ Connection Error: ${e.message}`);
+                        if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">Offline / Error</span>`;
+                    }
+                },
                 clearOldInvoices: () => {
                     const invoices = Store.get('invoices', []);
                     const threeMonthsAgo = new Date();
@@ -2813,8 +2895,8 @@
                     const fileInput = document.getElementById('set-logo-input');
                     if (fileInput.files[0]) {
                         try {
-                            logo = await Utils.readFile(fileInput.files[0]);
-                            logo = await Utils.compressImage(logo, 300, 0.6); // Compress logo
+                            const raw = await Utils.readFile(fileInput.files[0]);
+                            logo = await Utils.compressImage(raw, 300, 0.6); // Compress logo
                         } catch (e) { console.error(e); }
                     }
 
@@ -2823,8 +2905,8 @@
                     const upiInput = document.getElementById('set-upi-input');
                     if (upiInput.files[0]) {
                         try {
-                            upi_qr = await Utils.readFile(upiInput.files[0]);
-                            upi_qr = await Utils.compressImage(upi_qr, 300, 0.6); // Compress QR
+                            const raw = await Utils.readFile(upiInput.files[0]);
+                            upi_qr = await Utils.compressImage(raw, 300, 0.6); // Compress QR
                         } catch (e) { console.error(e); }
                     }
 
