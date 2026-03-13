@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -551,17 +553,35 @@
                 display: none !important;
             }
 
-            body {
+            body.print-receipt-mode, body.print-barcode-mode {
                 background: white;
                 color: black;
             }
 
-            #receipt-print-area {
+            body.print-receipt-mode #receipt-print-area {
                 display: block !important;
                 position: absolute;
                 top: 0;
                 left: 0;
                 width: 100%;
+            }
+
+            body.print-barcode-mode #barcode-print-area {
+                display: flex !important;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100vh;
+            }
+            body.print-barcode-mode #receipt-print-area {
+                display: none !important;
+            }
+            body.print-receipt-mode #barcode-print-area {
+                display: none !important;
             }
         }
 
@@ -644,6 +664,9 @@
                 <a class="nav-item" data-view="customers" onclick="App.router.navigate('customers')">
                     <span>👥</span> Customers
                 </a>
+                <a class="nav-item" data-view="purchases" onclick="App.router.navigate('purchases')">
+                    <span>📦</span> Purchases
+                </a>
                 <a class="nav-item" data-view="reports" onclick="App.router.navigate('reports')">
                     <span>📈</span> Reports
                 </a>
@@ -713,8 +736,9 @@
                     <!-- Left: Products -->
                     <div class="flex flex-col gap-2">
                         <div class="flex gap-2">
-                            <input type="text" id="pos-search" class="input"
+                            <input type="text" id="pos-search" class="input flex-1"
                                 placeholder="Search product or scan barcode..." onkeyup="App.pos.renderProducts()">
+                            <button class="btn btn-primary" onclick="App.scanner.start('pos')" title="Scan Barcode">📷</button>
                             <select id="pos-category-filter" class="input" style="width: 150px;"
                                 onchange="App.pos.filterAndRender()"></select>
                         </div>
@@ -753,10 +777,13 @@
             </div>
 
             <div id="view-products" class="view hidden">
-                <div class="flex justify-between mb-4">
-                    <input type="text" id="prod-search" class="input" style="max-width: 300px;"
-                        placeholder="Search products..." onkeyup="App.products.renderTable()">
-                    <div class="flex gap-2">
+                <div class="flex justify-between mb-4 flex-wrap gap-2">
+                    <div class="flex gap-2" style="flex:1; max-width: 400px;">
+                        <input type="text" id="prod-search" class="input flex-1"
+                            placeholder="Search products..." onkeyup="App.products.renderTable()">
+                        <button class="btn btn-primary" onclick="App.scanner.start('products')" title="Scan Barcode">📷</button>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
                         <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv"
                             onchange="App.products.importExcel(this)">
                         <button class="btn" onclick="document.getElementById('prod-import-file').click()"
@@ -845,9 +872,38 @@
                     <button class="btn btn-danger" onclick="App.reports.render('lowstock')">Low Stock</button>
                     <button class="btn" onclick="App.reports.render('expense')"
                         style="background-color: #dc2626; color: white;">💸 Expense Report</button>
+                    <button class="btn" onclick="App.reports.render('purchase')"
+                        style="background-color: #6366f1; color: white;">🛒 Purchase Report</button>
                 </div>
                 <div id="report-content" class="card p-4">
                     <p>Select a report type above.</p>
+                </div>
+            </div>
+
+            <!-- ===== PURCHASES VIEW ===== -->
+            <div id="view-purchases" class="view hidden">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <label class="font-bold">Filter:</label>
+                        <input type="text" id="pur-search" class="input" placeholder="Search Supplier or Bill No..."
+                            style="width:220px" value="" onkeyup="App.purchases.renderTable()">
+                    </div>
+                    <button class="btn btn-primary" onclick="App.purchases.openModal()">+ Add Purchase</button>
+                </div>
+                <div class="table-container">
+                    <table id="purchases-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Bill No</th>
+                                <th>Supplier</th>
+                                <th>Items</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -916,6 +972,56 @@
                     <div class="modal-footer flex gap-2 justify-end">
                         <button class="btn" onclick="App.expenses.closeModal()">Cancel</button>
                         <button class="btn btn-primary" onclick="App.expenses.save()">Save Expense</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchase Modal -->
+            <div id="modal-purchase" class="modal">
+                <div class="modal-content" style="max-width:600px">
+                    <div class="modal-header">
+                        <h3 id="purchase-modal-title">Purchase Details</h3>
+                        <button class="btn" onclick="App.purchases.closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body flex flex-col gap-3">
+                        <input type="hidden" id="pur-id">
+                        <div class="flex gap-2">
+                            <div class="flex flex-col gap-1 flex-1">
+                                <label>Date</label>
+                                <input type="date" id="pur-date" class="input">
+                            </div>
+                            <div class="flex flex-col gap-1 flex-1">
+                                <label>Bill / Invoice No</label>
+                                <input type="text" id="pur-bill" class="input" placeholder="Bill No">
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label>Supplier Name *</label>
+                            <input type="text" id="pur-supplier" class="input" placeholder="Supplier Company Phase">
+                        </div>
+                        
+                        <div class="flex items-center justify-between mt-2">
+                            <label class="font-bold">Items</label>
+                            <button id="pur-add-item-btn" class="btn btn-sm btn-primary" onclick="App.purchases.addItemRow()">+ Add Item</button>
+                        </div>
+                        <div class="flex gap-2 px-2 text-xs font-bold text-muted">
+                            <div class="flex-1">Product</div>
+                            <div style="width:70px">Qty</div>
+                            <div style="width:90px">Cost (₹)</div>
+                            <div style="width:28px" id="pur-items-header-spacer"></div>
+                        </div>
+                        <div id="pur-items-container" class="flex flex-col gap-2 p-2 border rounded" style="background:var(--bg-body); max-height:250px; overflow-y:auto;">
+                            <!-- Items go here -->
+                        </div>
+                        
+                        <div class="flex justify-end items-center gap-2 mt-2">
+                            <label class="font-bold">Total Amount (₹):</label>
+                            <input type="number" id="pur-total" class="input text-right font-bold" placeholder="0.00" readonly style="width:120px;">
+                        </div>
+                    </div>
+                    <div class="modal-footer flex gap-2 justify-end">
+                        <button class="btn" onclick="App.purchases.closeModal()">Cancel</button>
+                        <button id="pur-save-btn" class="btn btn-primary" onclick="App.purchases.save()">Save Purchase</button>
                     </div>
                 </div>
             </div>
@@ -1069,6 +1175,11 @@
                 </div>
                 <div class="flex gap-2">
                     <input id="prod-barcode" class="input" placeholder="Barcode">
+                </div>
+                <!-- Details Row: HSN & Batch -->
+                <div class="flex gap-2">
+                    <input id="prod-hsn" class="input" placeholder="HSN Code (e.g. 1905)">
+                    <input id="prod-batch" class="input" placeholder="Batch Code (e.g. BATCH-A1)">
                 </div>
                 <div class="flex gap-2">
                     <input id="prod-cost" type="number" class="input" placeholder="Cost Price">
@@ -1268,7 +1379,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div id="modal-barcode-scanner" class="modal">
+        <div class="modal-content" style="max-width: 500px">
+            <div class="modal-header">
+                <h3>Scan Barcode</h3><span class="cursor-pointer font-bold" onclick="App.scanner.stop()">X</span>
+            </div>
+            <div class="modal-body flex flex-col gap-3">
+                <div id="reader-container" style="width: 100%; min-height: 250px; border-radius: 8px; overflow:hidden;"></div>
+            </div>
+            <div class="modal-footer justify-center gap-4">
+                <button class="btn" onclick="App.scanner.stop()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="receipt-print-area"></div>
+
+    <div id="barcode-print-area" style="display:none; text-align:center;">
+        <svg id="barcode-svg" style="width:100%; max-width:100%; height:auto;"></svg>
+        <div id="barcode-text" style="font-weight:bold; font-size:18px; margin-top: 10px;"></div>
+    </div>
 
     <!-- Floating WhatsApp -->
     <a href="https://wa.me/919360039283" target="_blank" id="floating-wa" title="Contact Us on WhatsApp">
@@ -1429,6 +1561,8 @@
                             else if (currentView === 'categories') App.categories.renderList();
                             else if (currentView === 'customers') App.customers.renderTable();
                             else if (currentView === 'reports') App.reports.renderInvoiceTable();
+                            else if (currentView === 'expenses') App.expenses.renderTable();
+                            else if (currentView === 'purchases') App.purchases.renderTable();
                             else if (currentView === 'settings') App.settings.load();
 
                             if (statusEl) statusEl.innerHTML = `Status: <span class="text-success">Online / Synced (${shopId}) - ${new Date().toLocaleTimeString()}</span>`;
@@ -1460,7 +1594,7 @@
                 const shopId = Store.get('fb_shopid', 'default');
                 if (!isSilent && !confirm(`This will PUSH all local data to the cloud for Shop ID: ${shopId}.\nExisting cloud data will be overwritten. Proceed?`)) return;
 
-                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
+                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'purchases', 'shop_config'];
                 const db = firebase.database();
                 let successCount = 0;
                 let totalSize = 0;
@@ -1677,7 +1811,7 @@
                 navigate: (viewName) => {
                     if (!App.user) return;
 
-                    const restricted = ['dashboard', 'categories', 'reports', 'settings'];
+                    const restricted = ['dashboard', 'categories', 'reports', 'settings', 'purchases', 'expenses'];
                     if (App.user.role !== 'admin' && restricted.includes(viewName)) {
                         alert("Access Denied: Admin only.");
                         return;
@@ -1701,6 +1835,7 @@
                     if (viewName === 'pos') App.pos.renderProducts();
                     if (viewName === 'dashboard') App.dashboard.refresh();
                     if (viewName === 'expenses') App.expenses.renderTable();
+                    if (viewName === 'purchases') App.purchases.renderTable();
 
                     // Mobile sidebar close
                     const side = document.getElementById('sidebar');
@@ -1785,6 +1920,83 @@
                             const h = (val / maxVal) * 100;
                             chart.innerHTML += `<div style="flex:1; background:var(--primary); height:${Math.max(h, 1)}%; border-radius:4px 4px 0 0; position:relative;" title="${d}: ${val}"></div>`;
                         });
+                    }
+                }
+            },
+
+            scanner: {
+                html5QrcodeScanner: null,
+                target: null, // 'pos' or 'products'
+                start: (targetView) => {
+                    App.scanner.target = targetView;
+                    App.router.showModal('modal-barcode-scanner');
+                    // Avoid multiple instances
+                    if (App.scanner.html5QrcodeScanner) {
+                        try { App.scanner.html5QrcodeScanner.clear(); } catch(e){}
+                    }
+                    App.scanner.html5QrcodeScanner = new Html5QrcodeScanner(
+                        "reader-container", { fps: 10, qrbox: 250 }, false);
+                    App.scanner.html5QrcodeScanner.render(App.scanner.onScanSuccess, App.scanner.onScanFailure);
+                },
+                stop: () => {
+                    if (App.scanner.html5QrcodeScanner) {
+                        try {
+                            App.scanner.html5QrcodeScanner.clear();
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+                    App.router.hideModal('modal-barcode-scanner');
+                },
+                onScanSuccess: (decodedText, decodedResult) => {
+                    // Handle on success condition with the decoded text or result.
+                    App.scanner.stop();
+                    if (App.scanner.target === 'pos') {
+                        const input = document.getElementById('pos-search');
+                        if (input) {
+                            input.value = decodedText;
+                            App.pos.filterAndRender(); // update filter
+                            // Auto-add if it exactly matches one product
+                            const products = Store.get('products', []);
+                            const filtered = products.filter(p => p.barcode === decodedText);
+                            if (filtered.length === 1) {
+                                App.pos.addToCart(filtered[0].id);
+                                input.value = '';
+                                App.pos.filterAndRender();
+                            }
+                        }
+                    } else if (App.scanner.target === 'products') {
+                        const input = document.getElementById('prod-search');
+                        if (input) {
+                            input.value = decodedText;
+                            App.products.renderTable();
+                        }
+                    }
+                },
+                onScanFailure: (error) => {}
+            },
+
+            printer: {
+                printBarcode: (barcode, name, price) => {
+                    if (!barcode || barcode === 'undefined' || barcode === 'null' || barcode.trim() === '') {
+                        alert("This product does not have a barcode. Please edit the product and add a barcode first.");
+                        return;
+                    }
+                    try {
+                        JsBarcode("#barcode-svg", barcode, {
+                            format: "CODE128",
+                            lineColor: "#000",
+                            width: 2,
+                            height: 80,
+                            displayValue: true
+                        });
+                        document.getElementById('barcode-text').innerText = `${name} - ${Utils.formatCurrency(price)}`;
+                        
+                        document.body.classList.add('print-barcode-mode');
+                        window.print();
+                        document.body.classList.remove('print-barcode-mode');
+                    } catch (e) {
+                        alert("Error generating barcode: " + e.message + "\nPlease try using a simpler alphanumeric barcode.");
                     }
                 }
             },
@@ -1874,12 +2086,13 @@
                             return `
                                 <tr style="${isExpired ? 'background-color: var(--danger-light, #fee2e2);' : ''}">
                                     <td><img src="${p.image || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;background:#f8f9fa" onerror="this.src='https://via.placeholder.com/40'"></td>
-                                    <td><div class="text-truncate" style="max-width: 200px;" title="${p.name}">${p.name}</div><small class="text-muted">${p.brand || ''}</small></td>
+                                    <td><div class="text-truncate" style="max-width: 200px;" title="${p.name}">${p.name}</div><small class="text-muted">HSN: ${p.hsn || '-'} | Batch: ${p.batch || '-'}</small></td>
                                 <td>${cat}</td>
                                 <td>${Utils.formatCurrency(p.price)}</td>
                                 <td class="${p.stock < 5 ? 'text-danger font-bold' : ''}">${p.stock}</td>
                                 <td>${expiryDisplay}</td>
                                 <td>
+                                    <button class="btn btn-sm" title="Print Barcode" onclick="App.printer.printBarcode('${p.barcode}', '${p.name.replace(/'/g, "\\'")}', '${p.price}')">🖨️</button>
                                     <button class="btn btn-sm" onclick="App.products.edit('${p.id}')">✏️</button>
                                     <button class="btn btn-sm text-danger" onclick="App.products.delete('${p.id}')">🗑️</button>
                                 </td>
@@ -1893,6 +2106,8 @@
                     document.getElementById('prod-name').value = '';
                     document.getElementById('prod-brand').value = '';
                     document.getElementById('prod-barcode').value = '';
+                    document.getElementById('prod-hsn').value = '';
+                    document.getElementById('prod-batch').value = '';
                     document.getElementById('prod-cost').value = '';
                     document.getElementById('prod-price').value = '';
                     document.getElementById('prod-gst').value = '';
@@ -1927,6 +2142,8 @@
                         category_id: document.getElementById('prod-cat').value,
                         unit: document.getElementById('prod-unit').value || 'pcs',
                         barcode: document.getElementById('prod-barcode').value,
+                        hsn: document.getElementById('prod-hsn').value.trim(),
+                        batch: document.getElementById('prod-batch').value.trim(),
                         cost: parseFloat(document.getElementById('prod-cost').value) || 0,
                         price,
                         gst_percent: parseFloat(document.getElementById('prod-gst').value) || 0,
@@ -1944,6 +2161,15 @@
                     Store.set('products', products);
                     App.router.hideModal('modal-product');
                     App.products.renderTable();
+
+                    // If called from Purchase Entry
+                    if (App.purchases.newItemRowIdx !== null) {
+                        const rowIdx = App.purchases.newItemRowIdx;
+                        App.purchases.newItemRowIdx = null; // reset
+                        App.purchases.tempItems[rowIdx].product_id = id;
+                        App.purchases.tempItems[rowIdx].cost = prod.cost;
+                        App.purchases.renderItems();
+                    }
                 },
                 edit: (id) => {
                     const p = Store.get('products', []).find(x => x.id === id);
@@ -1954,7 +2180,9 @@
                     document.getElementById('prod-brand').value = p.brand;
                     document.getElementById('prod-cat').value = p.category_id;
                     document.getElementById('prod-unit').value = p.unit || 'pcs';
-                    document.getElementById('prod-barcode').value = p.barcode;
+                    document.getElementById('prod-barcode').value = p.barcode || '';
+                    document.getElementById('prod-hsn').value = p.hsn || '';
+                    document.getElementById('prod-batch').value = p.batch || '';
                     document.getElementById('prod-cost').value = p.cost;
                     document.getElementById('prod-price').value = p.price;
                     document.getElementById('prod-gst').value = p.gst_percent;
@@ -1981,6 +2209,8 @@
                         'Category': cats.find(c => c.id === p.category_id)?.name || '',
                         'Unit': p.unit || 'pcs',
                         'Barcode': p.barcode || '',
+                        'HSN Code': p.hsn || '',
+                        'Batch Code': p.batch || '',
                         'Cost Price': p.cost || 0,
                         'Selling Price': p.price || 0,
                         'GST %': p.gst_percent || 0,
@@ -2668,6 +2898,7 @@
                     App.pos.clearCart();
                 },
                 printReceipt: (inv) => {
+                    document.body.classList.add('print-receipt-mode');
                     const config = Store.get('shop_config', { name: 'v-billing' });
                     const custs = Store.get('customers', []);
                     const customer = custs.find(c => c.id === inv.customer_id);
@@ -2727,6 +2958,7 @@
                         <div style="text-align:center">${config.footer || 'Thanks!'}</div>
                     `;
                     window.print();
+                    document.body.classList.remove('print-receipt-mode');
                 },
                 sendWhatsAppBill: (inv) => {
                     if (!inv || !inv.customer_phone) {
@@ -2838,7 +3070,7 @@
                             alert(`⚠️ Shop ID "${shopId}" exists but is EMPTY in the cloud.\n\nACTION: Use "Push Current Data to Cloud" to upload your data from this device.`);
                         } else {
                             let report = `✅ Sync Health Report\n------------------------\n📍 Shop ID: ${shopId}\n\n`;
-                            const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'shop_config'];
+                            const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'purchases', 'shop_config'];
                             let outOfSync = 0;
 
                             keys.forEach(k => {
@@ -2952,7 +3184,9 @@
                             products: Store.get('products', []),
                             categories: Store.get('categories', []),
                             customers: Store.get('customers', []),
-                            invoices: Store.get('invoices', [])
+                            invoices: Store.get('invoices', []),
+                            expenses: Store.get('expenses', []),
+                            purchases: Store.get('purchases', [])
                         };
                         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
@@ -2982,6 +3216,8 @@
                             if (data.categories) Store.set('categories', data.categories);
                             if (data.customers) Store.set('customers', data.customers);
                             if (data.invoices) Store.set('invoices', data.invoices);
+                            if (data.expenses) Store.set('expenses', data.expenses);
+                            if (data.purchases) Store.set('purchases', data.purchases);
                             alert('Data Restored! Reloading...');
                             location.reload();
                         } catch (err) { alert('Invalid JSON File: ' + err.message); }
@@ -2993,7 +3229,7 @@
                     if (prods.length === 0) return alert("No products to export");
 
                     // Header
-                    const headers = ["id", "name", "category_id", "barcode", "cost", "price", "stock", "gst_percent"];
+                    const headers = ["id", "name", "category_id", "barcode", "hsn", "batch", "cost", "price", "stock", "gst_percent"];
                     const csv = [headers.join(',')];
 
                     prods.forEach(p => {
@@ -3046,6 +3282,220 @@
                         } catch (err) { alert("CSV Error: " + err.message); }
                     };
                     reader.readAsText(file);
+                }
+            },
+
+            purchases: {
+                tempItems: [],
+                newItemRowIdx: null,
+                
+                createNewProductShortcut: (rowIdx) => {
+                    App.purchases.newItemRowIdx = rowIdx;
+                    App.products.openModal();
+                },
+                
+                renderTable: () => {
+                    const purs = Store.get('purchases', []);
+                    const search = (document.getElementById('pur-search')?.value || '').toLowerCase();
+                    const tbody = document.querySelector('#purchases-table tbody');
+                    if (!tbody) return;
+
+                    const html = purs.filter(p => 
+                        (p.supplier && p.supplier.toLowerCase().includes(search)) || 
+                        (p.bill_no && p.bill_no.toLowerCase().includes(search))
+                    ).sort((a,b) => new Date(b.date) - new Date(a.date)).map(p => `
+                        <tr>
+                            <td>${p.date}</td>
+                            <td>${p.bill_no || '-'}</td>
+                            <td>${p.supplier || '-'}</td>
+                            <td>${p.items ? p.items.length : 0} items</td>
+                            <td class="font-bold">${Utils.formatCurrency(p.total || 0)}</td>
+                            <td>
+                                <button class="btn btn-sm text-primary" onclick="App.purchases.view('${p.id}')">👁️</button>
+                                <button class="btn btn-sm text-danger" onclick="App.purchases.delete('${p.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    tbody.innerHTML = html;
+                },
+                openModal: () => {
+                    document.getElementById('pur-id').value = '';
+                    document.getElementById('pur-date').value = Utils.dateStr();
+                    document.getElementById('pur-bill').value = '';
+                    document.getElementById('pur-supplier').value = '';
+                    document.getElementById('pur-total').value = '0.00';
+                    App.purchases.tempItems = [];
+                    App.purchases.renderItems();
+                    document.getElementById('modal-purchase').setAttribute('data-mode', 'add');
+                    document.getElementById('purchase-modal-title').innerText = 'Add Purchase';
+                    document.getElementById('pur-save-btn').style.display = 'block';
+                    document.getElementById('pur-add-item-btn').style.display = 'block';
+                    App.router.showModal('modal-purchase');
+                },
+                closeModal: () => {
+                    App.router.hideModal('modal-purchase');
+                },
+                addItemRow: () => {
+                    App.purchases.tempItems.push({ product_id: '', qty: 1, cost: 0 });
+                    App.purchases.renderItems();
+                },
+                removeItemRow: (idx) => {
+                    App.purchases.tempItems.splice(idx, 1);
+                    App.purchases.renderItems();
+                },
+                updateItem: (idx, field, value) => {
+                    if(field === 'product_id') {
+                        App.purchases.tempItems[idx].product_id = value;
+                        const prods = Store.get('products', []);
+                        const p = prods.find(x => x.id === value);
+                        if(p) App.purchases.tempItems[idx].cost = parseFloat(p.cost) || 0;
+                        App.purchases.renderItems();
+                    } else if (field === 'qty') {
+                        App.purchases.tempItems[idx].qty = parseFloat(value) || 0;
+                        App.purchases.updateTotal();
+                    } else if (field === 'cost') {
+                        App.purchases.tempItems[idx].cost = parseFloat(value) || 0;
+                        App.purchases.updateTotal();
+                    }
+                },
+                updateTotal: () => {
+                    const total = App.purchases.tempItems.reduce((sum, item) => sum + ((parseFloat(item.qty)||0) * (parseFloat(item.cost)||0)), 0);
+                    const el = document.getElementById('pur-total');
+                    if (el) el.value = total.toFixed(2);
+                },
+                renderItems: () => {
+                    const container = document.getElementById('pur-items-container');
+                    const headerSpacer = document.getElementById('pur-items-header-spacer');
+                    if (!container) return;
+                    
+                    const prods = Store.get('products', []);
+                    const readonly = document.getElementById('modal-purchase').getAttribute('data-mode') === 'view';
+                    
+                    if (headerSpacer) Object.assign(headerSpacer.style, { display: readonly ? 'none' : 'block' });
+
+                    let options = '<option value="">Select Product...</option>' + prods.map(p => `<option value="${p.id}">${p.name} (${p.stock})</option>`).join('');
+
+                    if (App.purchases.tempItems.length === 0 && !readonly) {
+                        container.innerHTML = `<div class="text-center text-muted p-2">No items added yet. Click "+ Add Item".</div>`;
+                    } else {
+                        container.innerHTML = App.purchases.tempItems.map((item, idx) => `
+                            <div class="flex gap-2 items-center">
+                                ${readonly ? 
+                                    `<div class="flex-1 text-sm">${prods.find(p=>p.id===item.product_id)?.name || 'Unknown'}</div>` : 
+                                    `<div class="flex flex-1 gap-1">
+                                        <select class="input flex-1" onchange="App.purchases.updateItem(${idx}, 'product_id', this.value)">
+                                            ${options.replace(`value="${item.product_id}"`, `value="${item.product_id}" selected`)}
+                                        </select>
+                                        <button class="btn btn-sm btn-primary" onclick="App.purchases.createNewProductShortcut(${idx})" title="Add New Product">+</button>
+                                    </div>`
+                                }
+                                <input type="number" step="any" class="input" style="width:70px" placeholder="Qty" value="${item.qty}" ${readonly ? 'readonly' : `oninput="App.purchases.updateItem(${idx}, 'qty', this.value)"`}>
+                                <input type="number" step="any" class="input" style="width:90px" placeholder="Cost" value="${item.cost}" ${readonly ? 'readonly' : `oninput="App.purchases.updateItem(${idx}, 'cost', this.value)"`}>
+                                ${readonly ? '' : `<button class="btn btn-sm text-danger" style="width:28px; padding:0;" onclick="App.purchases.removeItemRow(${idx})">✕</button>`}
+                            </div>
+                        `).join('');
+                    }
+                    App.purchases.updateTotal();
+                },
+                save: () => {
+                    const mode = document.getElementById('modal-purchase').getAttribute('data-mode');
+                    if (mode === 'view') {
+                        App.purchases.closeModal();
+                        return;
+                    }
+
+                    const purs = Store.get('purchases', []);
+                    const id = document.getElementById('pur-id').value || Utils.id();
+                    const date = document.getElementById('pur-date').value;
+                    const supplier = document.getElementById('pur-supplier').value.trim();
+                    const bill_no = document.getElementById('pur-bill').value.trim();
+                    const total = parseFloat(document.getElementById('pur-total').value) || 0;
+                    
+                    if (!supplier) { alert("Supplier name is required"); return; }
+                    if (App.purchases.tempItems.length === 0) { alert("Add at least one item."); return; }
+
+                    for(let i=0; i<App.purchases.tempItems.length; i++){
+                        if(!App.purchases.tempItems[i].product_id) {
+                            alert(`Please select a product for item row ${i+1}`);
+                            return;
+                        }
+                    }
+
+                    const newPurchase = {
+                        id, date, supplier, bill_no, total,
+                        items: JSON.parse(JSON.stringify(App.purchases.tempItems))
+                    };
+
+                    purs.push(newPurchase);
+                    Store.set('purchases', purs);
+
+                    // Update Stock and Cost
+                    const prods = Store.get('products', []);
+                    App.purchases.tempItems.forEach(item => {
+                        const p = prods.find(x => x.id === item.product_id);
+                        if (p) {
+                            p.stock = (parseFloat(p.stock) || 0) + item.qty;
+                            if (item.cost > 0) p.cost = item.cost;
+                        }
+                    });
+                    Store.set('products', prods);
+
+                    App.purchases.closeModal();
+                    App.purchases.renderTable();
+                    alert("Purchase saved and stock updated successfully.");
+                },
+                view: (id) => {
+                    const p = Store.get('purchases', []).find(x => x.id === id);
+                    if (!p) return;
+                    document.getElementById('pur-id').value = p.id;
+                    document.getElementById('pur-date').value = p.date;
+                    document.getElementById('pur-bill').value = p.bill_no;
+                    document.getElementById('pur-supplier').value = p.supplier;
+                    document.getElementById('pur-total').value = p.total.toFixed(2);
+                    App.purchases.tempItems = JSON.parse(JSON.stringify(p.items || []));
+                    
+                    document.getElementById('modal-purchase').setAttribute('data-mode', 'view');
+                    document.getElementById('purchase-modal-title').innerText = 'View Purchase';
+                    document.getElementById('pur-save-btn').style.display = 'none';
+                    document.getElementById('pur-add-item-btn').style.display = 'none';
+                    
+                    App.purchases.renderItems();
+                    App.router.showModal('modal-purchase');
+                },
+                delete: (id) => {
+                    const purs = Store.get('purchases', []);
+                    const purchaseToDelete = purs.find(c => c.id === id);
+
+                    if (purchaseToDelete) {
+                        if (confirm("Delete this purchase? This will DECREASE the stock of the included items by the purchased quantity.")) {
+                            
+                            // Revert Stock
+                            const prods = Store.get('products', []);
+                            let stockWarning = false;
+
+                            purchaseToDelete.items.forEach(item => {
+                                const p = prods.find(x => x.id === item.product_id);
+                                if (p) {
+                                    p.stock = (parseFloat(p.stock) || 0) - (parseFloat(item.qty) || 0);
+                                    if (p.stock < 0) stockWarning = true;
+                                }
+                            });
+                            
+                            Store.set('products', prods);
+                            
+                            // Delete Purchase Record
+                            const newPurs = purs.filter(c => c.id !== id);
+                            Store.set('purchases', newPurs);
+                            App.purchases.renderTable();
+                            App.products?.renderTable?.(); // If on products view
+
+                            if (stockWarning) {
+                                alert("Purchase deleted and stock decreased successfully!\n\n⚠️ NOTE: Deleting this purchase dropped some product stock levels below 0.");
+                            } else {
+                                alert("Purchase deleted and stock decreased successfully!");
+                            }
+                        }
+                    }
                 }
             },
 
@@ -3433,6 +3883,64 @@
                                                 <td><span style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:4px;">${e.category}</span></td>
                                                 <td>${e.desc || '-'}</td>
                                                 <td class="font-bold text-danger">${Utils.formatCurrency(e.amount)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'purchase') {
+                        const m = param || Utils.dateStr().substring(0, 7);
+                        const allPurs = Store.get('purchases', []);
+                        const filtered = allPurs.filter(p => p.date.startsWith(m));
+                        const totalPur = filtered.reduce((s, p) => s + p.total, 0);
+
+                        // Product breakdown
+                        const itemBreakdown = {};
+                        filtered.forEach(p => {
+                            p.items.forEach(item => {
+                                if (!itemBreakdown[item.product_id]) {
+                                    const prod = prods.find(x => x.id === item.product_id);
+                                    itemBreakdown[item.product_id] = { name: prod ? prod.name : 'Unknown', qty: 0, cost: 0 };
+                                }
+                                itemBreakdown[item.product_id].qty += item.qty;
+                                itemBreakdown[item.product_id].cost += (item.qty * (item.cost || 0));
+                            });
+                        });
+
+                        html = `<h3>🛒 Purchase Report</h3>
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label>Filter Date/Month:</label>
+                                    <input type="text" value="${m}" onchange="App.reports.render('purchase', this.value)" class="input" placeholder="YYYY-MM-DD or YYYY-MM" style="width:200px">
+                                </div>
+                                <div class="flex gap-4 mb-4 flex-wrap">
+                                    <div class="card p-4 flex-1 text-center" style="border:2px solid #6366f1;">
+                                        <div class="text-muted">Total Purchases</div>
+                                        <div class="text-2xl font-bold text-primary" style="color:#6366f1;">${Utils.formatCurrency(totalPur)}</div>
+                                        <div class="text-xs text-muted">${filtered.length} bills</div>
+                                    </div>
+                                </div>
+                                <h4 class="font-bold mb-2">Item-wise Stock Received</h4>
+                                <table class="mb-4">
+                                    <thead><tr><th>Product</th><th>Qty Received</th><th>Total Cost</th></tr></thead>
+                                    <tbody>
+                                        ${Object.values(itemBreakdown).sort((a,b) => b.cost - a.cost).map(i => `
+                                            <tr>
+                                                <td>${i.name}</td>
+                                                <td class="font-bold">${i.qty}</td>
+                                                <td class="text-primary">${Utils.formatCurrency(i.cost)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                                <h4 class="font-bold mb-2">Purchase Bills</h4>
+                                <table>
+                                    <thead><tr><th>Date</th><th>Bill No</th><th>Supplier</th><th>Items</th><th>Amount</th></tr></thead>
+                                    <tbody>
+                                        ${[...filtered].sort((a,b) => b.date.localeCompare(a.date)).map(p => `
+                                            <tr>
+                                                <td>${p.date}</td>
+                                                <td>${p.bill_no || '-'}</td>
+                                                <td>${p.supplier}</td>
+                                                <td>${p.items.length}</td>
+                                                <td class="font-bold text-primary">${Utils.formatCurrency(p.total)}</td>
                                             </tr>`).join('')}
                                     </tbody>
                                 </table>`;
