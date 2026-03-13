@@ -739,8 +739,15 @@
                             <input type="text" id="pos-search" class="input flex-1"
                                 placeholder="Search product or scan barcode..." onkeyup="App.pos.renderProducts()">
                             <button class="btn btn-primary" onclick="App.scanner.start('pos')" title="Scan Barcode">📷</button>
-                            <select id="pos-category-filter" class="input" style="width: 150px;"
+                            <button class="btn btn-primary" onclick="App.camera.start('search')" title="Search by Image">🔍🖼️</button>
+                            <select id="pos-category-filter" class="input" style="width: 140px;"
                                 onchange="App.pos.filterAndRender()"></select>
+                            <select id="pos-sort" class="input" style="width: 140px;" onchange="App.pos.filterAndRender()">
+                                <option value="newest">Newest First</option>
+                                <option value="price_high">Price: High to Low</option>
+                                <option value="price_low">Price: Low to High</option>
+                                <option value="name">Name: A-Z</option>
+                            </select>
                         </div>
                         <div id="pos-product-list" class="product-grid"></div>
                     </div>
@@ -782,6 +789,13 @@
                         <input type="text" id="prod-search" class="input flex-1"
                             placeholder="Search products..." onkeyup="App.products.renderTable()">
                         <button class="btn btn-primary" onclick="App.scanner.start('products')" title="Scan Barcode">📷</button>
+                        <select id="prod-sort" class="input" style="width: 140px;" onchange="App.products.renderTable()">
+                            <option value="newest">Newest First</option>
+                            <option value="price_high">Price: High to Low</option>
+                            <option value="price_low">Price: Low to High</option>
+                            <option value="name">Name: A-Z</option>
+                            <option value="stock_low">Stock: Low to High</option>
+                        </select>
                     </div>
                     <div class="flex gap-2 flex-wrap">
                         <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv"
@@ -1457,7 +1471,31 @@
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
                 img.onerror = () => resolve(base64);
-            })
+            }),
+            getImageData: (base64, size = 32) => new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, size, size);
+                    resolve(ctx.getImageData(0, 0, size, size).data);
+                };
+                img.onerror = () => resolve(null);
+            }),
+            compareImages: async (data1, data2) => {
+                if (!data1 || !data2) return 0;
+                let diff = 0;
+                for (let i = 0; i < data1.length; i += 4) {
+                    diff += Math.abs(data1[i] - data2[i]); // R
+                    diff += Math.abs(data1[i+1] - data2[i+1]); // G
+                    diff += Math.abs(data1[i+2] - data2[i+2]); // B
+                }
+                const maxDiff = 255 * 3 * (data1.length / 4);
+                return 1 - (diff / maxDiff);
+            }
         };
 
         const Store = {
@@ -2003,7 +2041,9 @@
 
             camera: {
                 stream: null,
-                start: async () => {
+                target: 'products', // 'products' or 'search'
+                start: async (targetMode = 'products') => {
+                    App.camera.target = targetMode;
                     try {
                         const constraints = { video: { facingMode: 'environment' } };
                         App.camera.stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -2029,9 +2069,15 @@
                     canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
                     const data = canvas.toDataURL('image/jpeg', 0.8);
-                    const compressed = await Utils.compressImage(data, 600, 0.7);
-                    App.products.tempImage = compressed;
-                    App.products.updatePreview(compressed);
+                    
+                    if (App.camera.target === 'products') {
+                        const compressed = await Utils.compressImage(data, 600, 0.7);
+                        App.products.tempImage = compressed;
+                        App.products.updatePreview(compressed);
+                    } else if (App.camera.target === 'search') {
+                        App.pos.performVisualSearch(data);
+                    }
+                    
                     App.camera.stop();
                 }
             },
@@ -2061,7 +2107,19 @@
                     const tbody = document.querySelector('#products-table tbody');
                     if (!tbody) return;
 
-                    const html = products.filter(p => p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)))
+                    const sortBy = document.getElementById('prod-sort')?.value || 'newest';
+                    const filtered = products.filter(p => p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)));
+                    
+                    const sorted = [...filtered].sort((a, b) => {
+                        if (sortBy === 'price_high') return b.price - a.price;
+                        if (sortBy === 'price_low') return a.price - b.price;
+                        if (sortBy === 'name') return a.name.localeCompare(b.name);
+                        if (sortBy === 'stock_low') return a.stock - b.stock;
+                        return 0;
+                    });
+                    if (sortBy === 'newest') sorted.reverse();
+
+                    const html = sorted
                         .map(p => {
                             const cat = cats.find(c => c.id === p.category_id)?.name || '-';
 
@@ -2502,7 +2560,49 @@
                 cart: [],
                 filterCategory: '',
                 orderType: 'Self Pickup',
+                visualSearchScores: null, // { productId: score }
 
+                performVisualSearch: async (capturedBase64) => {
+                    const grid = document.getElementById('pos-product-list');
+                    if (grid) grid.innerHTML = '<div class="text-center p-8 w-full"><div class="spinner mb-2"></div>Analyzing Image...</div>';
+
+                    const products = Store.get('products', []).filter(p => p.image);
+                    if (products.length === 0) {
+                        alert("No products with images found to compare.");
+                        App.pos.renderProducts();
+                        return;
+                    }
+
+                    try {
+                        const targetData = await Utils.getImageData(capturedBase64, 32);
+                        const scores = {};
+
+                        for (const p of products) {
+                            const pData = await Utils.getImageData(p.image, 32);
+                            const similarity = await Utils.compareImages(targetData, pData);
+                            scores[p.id] = similarity;
+                        }
+
+                        App.pos.visualSearchScores = scores;
+                        App.pos.filterAndRender();
+                        
+                        // Clear after 30 seconds or on next filter change? 
+                        // Let's just keep it until manual clear or re-render
+                        const clearBtn = document.createElement('button');
+                        clearBtn.className = 'btn btn-sm btn-danger mt-2';
+                        clearBtn.innerText = 'Clear Visual Search';
+                        clearBtn.onclick = () => {
+                            App.pos.visualSearchScores = null;
+                            App.pos.filterAndRender();
+                        };
+                        grid.prepend(clearBtn);
+
+                    } catch (e) {
+                        console.error("Visual Search Error:", e);
+                        alert("Error processing image.");
+                        App.pos.renderProducts();
+                    }
+                },
                 renderProducts: () => {
                     App.pos.filterAndRender();
                 },
@@ -2525,8 +2625,31 @@
                         return matchCat && matchSearch;
                     });
 
+                    // Sorting
+                    const sortBy = document.getElementById('pos-sort')?.value || 'newest';
+                    let sorted = [...filtered];
+
+                    if (App.pos.visualSearchScores) {
+                        // Sort by similarity score
+                        sorted.sort((a, b) => {
+                            const scoreA = App.pos.visualSearchScores[a.id] || 0;
+                            const scoreB = App.pos.visualSearchScores[b.id] || 0;
+                            return scoreB - scoreA;
+                        });
+                        // Filter out very low matches if needed, but showing all sorted is better
+                        sorted = sorted.filter(p => (App.pos.visualSearchScores[p.id] || 0) > 0.5); // 50% match threshold
+                    } else {
+                        sorted.sort((a, b) => {
+                            if (sortBy === 'price_high') return b.price - a.price;
+                            if (sortBy === 'price_low') return a.price - b.price;
+                            if (sortBy === 'name') return a.name.localeCompare(b.name);
+                            return 0; 
+                        });
+                        if (sortBy === 'newest') sorted.reverse();
+                    }
+
                     const grid = document.getElementById('pos-product-list');
-                    if (grid) grid.innerHTML = filtered.map(p => `
+                    if (grid) grid.innerHTML = sorted.map(p => `
                         <div class="product-card" onclick="App.pos.addToCart('${p.id}')">
                             <div class="stock-badge ${p.stock <= 0 ? 'bg-danger' : ''}">${p.stock}</div>
                             <img src="${p.image || 'https://via.placeholder.com/150?text=No+Img'}" onerror="this.src='https://via.placeholder.com/150?text=No+Img'">
