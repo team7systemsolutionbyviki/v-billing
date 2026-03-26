@@ -2037,6 +2037,8 @@
 
                     if (user) {
                         sessionStorage.setItem('cosmatic_session', JSON.stringify(user));
+                        // Grant Super Admin to 'viki' even on PIN login
+                        if (user.id === 'viki') user.is_super = true;
                         App.user = user;
                         document.getElementById('login-view').classList.add('hidden');
                         document.getElementById('login-form').reset();
@@ -2072,13 +2074,17 @@
                         document.getElementById('login-error').classList.remove('hidden');
                     }
                 },
-                logout: () => {
+                logout: async () => {
                     if (confirm("Logout now? A backup will be downloaded automatically.")) {
                         App.settings.backup();
-                        setTimeout(() => {
-                            sessionStorage.removeItem('cosmatic_session');
-                            location.reload();
-                        }, 1000);
+                        // Ensure everything is pushed to the cloud before clearing the session
+                        if (Store.fbReady) {
+                            try {
+                                await Store.syncAllToCloud(true);
+                            } catch (e) { console.error("Final sync failed", e); }
+                        }
+                        sessionStorage.removeItem('cosmatic_session');
+                        location.reload();
                     }
                 },
                 googleLogin: async () => {
@@ -4692,7 +4698,13 @@
             }
         };
 
-        // Start
+        // Periodic Auto-Sync every 5 mins
+        setInterval(() => {
+            if (Store.fbReady && !Store.isSyncing) {
+                Store.syncAllToCloud(true).catch(e => console.error("Periodic sync error:", e));
+            }
+        }, 1000 * 60 * 5);
+
         window.onload = App.init;
     </script>
 </body>
