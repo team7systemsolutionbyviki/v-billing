@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
@@ -636,6 +638,18 @@
                 </div>
                 <button type="submit" class="btn btn-primary w-full">Login</button>
                 <div id="login-error" class="text-danger text-center hidden">Invalid PIN</div>
+
+                <div style="text-align:center; color: var(--text-muted); font-size: 0.8rem; margin: 0.5rem 0;">&mdash; OR &mdash;</div>
+                <button type="button" class="btn w-full" style="background-color: white; color: #555; border: 1px solid #ddd; justify-content: center; box-shadow: var(--shadow-sm);" onclick="App.auth.googleLogin()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        <path d="M1 1h22v22H1z" fill="none"/>
+                    </svg>
+                    Continue with Google
+                </button>
             </form>
         </div>
     </div>
@@ -734,21 +748,40 @@
             <div id="view-pos" class="view hidden">
                 <div class="pos-layout">
                     <!-- Left: Products -->
-                    <div class="flex flex-col gap-2">
-                        <div class="flex gap-2">
-                            <input type="text" id="pos-search" class="input flex-1"
-                                placeholder="Search product or scan barcode..." onkeyup="App.pos.renderProducts()">
-                            <button class="btn btn-primary" onclick="App.scanner.start('pos')" title="Scan Barcode">📷</button>
-                            <button class="btn btn-primary" onclick="App.camera.start('search')" title="Search by Image">🔍🖼️</button>
-                            <select id="pos-category-filter" class="input" style="width: 140px;"
-                                onchange="App.pos.filterAndRender()"></select>
-                            <select id="pos-sort" class="input" style="width: 140px;" onchange="App.pos.filterAndRender()">
-                                <option value="newest">Newest First</option>
-                                <option value="price_high">Price: High to Low</option>
-                                <option value="price_low">Price: Low to High</option>
-                                <option value="name">Name: A-Z</option>
-                            </select>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex w-full items-center" style="position: relative;">
+                            <svg style="position: absolute; left: 16px; color: #94a3b8;" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            
+                            <input type="text" id="pos-search" class="input w-full"
+                                style="padding-left: 3rem; padding-right: 6rem; padding-top: 0.85rem; padding-bottom: 0.85rem; font-size: 1.05rem; border-radius: 9999px; box-shadow: var(--shadow-sm);"
+                                placeholder="Search product name or barcode..." onkeyup="App.pos.renderProducts()">
+                                
+                            <div style="position: absolute; right: 8px; display: flex; gap: 4px;">
+                                <button class="btn" style="background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--primary);" onmouseover="this.style.background='#eef7f0'" onmouseout="this.style.background='transparent'" onclick="App.scanner.start('pos')" title="Scan Barcode">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10v-4a2 2 0 012-2h4m10 4v-4a2 2 0 00-2-2h-4m-10 10v4a2 2 0 002 2h4m10-4v4a2 2 0 01-2 2h-4"></path></svg>
+                                </button>
+                                <button class="btn" style="background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--primary);" onmouseover="this.style.background='#eef7f0'" onmouseout="this.style.background='transparent'" onclick="App.camera.start('search')" title="Search by Visual Image">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                </button>
+                            </div>
                         </div>
+                        
+                        <div class="flex gap-3 w-full mb-1">
+                            <div style="flex: 1; position: relative;">
+                                <select id="pos-category-filter" class="input w-full" style="border-radius: 0.5rem; background-color: var(--bg-card); appearance: none; padding-right: 2rem;" onchange="App.pos.filterAndRender()"></select>
+                                <svg style="position: absolute; right: 12px; top: 12px; pointer-events: none; color: #94a3b8;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div style="flex: 1; position: relative;">
+                                <select id="pos-sort" class="input w-full" style="border-radius: 0.5rem; background-color: var(--bg-card); appearance: none; padding-right: 2rem;" onchange="App.pos.filterAndRender()">
+                                    <option value="newest">Sort: Newest First</option>
+                                    <option value="price_high">Price: High to Low</option>
+                                    <option value="price_low">Price: Low to High</option>
+                                    <option value="name">Name: A-Z</option>
+                                </select>
+                                <svg style="position: absolute; right: 12px; top: 12px; pointer-events: none; color: #94a3b8;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
                         <div id="pos-product-list" class="product-grid"></div>
                     </div>
                     <!-- Right: Cart -->
@@ -1453,7 +1486,6 @@
             }),
             compressImage: (base64, maxWidth = 300, quality = 0.6) => new Promise((resolve) => {
                 const img = new Image();
-                img.src = base64;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let width = img.width;
@@ -1471,10 +1503,10 @@
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
                 img.onerror = () => resolve(base64);
+                img.src = base64;
             }),
             getImageData: (base64, size = 32) => new Promise((resolve) => {
                 const img = new Image();
-                img.src = base64;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = size;
@@ -1484,7 +1516,33 @@
                     resolve(ctx.getImageData(0, 0, size, size).data);
                 };
                 img.onerror = () => resolve(null);
+                img.src = base64;
             }),
+            uploadImageToStorage: async (base64, productId) => {
+                if (!base64 || !base64.startsWith('data:image/')) return base64;
+                try {
+                    const storage = firebase.storage();
+                    const shopId = Store.get('fb_shopid', 'default');
+                    const ref = storage.ref(`shops/${shopId}/products/${productId}.jpg`);
+                    
+                    // Robust base64 to Blob conversion for legacy/tablet browsers
+                    const parts = base64.split(';base64,');
+                    const contentType = parts[0].split(':')[1];
+                    const raw = window.atob(parts[1]);
+                    const rawLength = raw.length;
+                    const uInt8Array = new Uint8Array(rawLength);
+                    for (let i = 0; i < rawLength; ++i) {
+                        uInt8Array[i] = raw.charCodeAt(i);
+                    }
+                    const blob = new Blob([uInt8Array], { type: contentType });
+
+                    await ref.put(blob);
+                    return await ref.getDownloadURL();
+                } catch (e) {
+                    console.error("Storage upload failed", e);
+                    return base64; // Fallback to local base64 storage
+                }
+            },
             compareImages: async (data1, data2) => {
                 if (!data1 || !data2) return 0;
                 let diff = 0;
@@ -1534,19 +1592,35 @@
                         const safeVal = JSON.parse(JSON.stringify(val));
                         const size = JSON.stringify(safeVal).length;
 
-                        // Firebase has a 10MB limit (10 * 1024 * 1024 bytes)
-                        if (size > 10 * 1024 * 1024) {
+                        // Firebase has a hard 10MB limit per payload via SDK.
+                        // We bypass this for arrays by chunking the data into smaller payloads!
+                        if (size > 8 * 1024 * 1024 && Array.isArray(safeVal)) {
+                            console.warn(`Data for ${key} is large (${(size / 1024 / 1024).toFixed(2)} MB). Chunking upload to bypass 10MB limit...`);
+                            const ref = db.ref(`shops/${shopId}/${key}`);
+                            const batchSize = 25; // Small chunks safely below 10MB
+                            for (let i = 0; i < safeVal.length; i += batchSize) {
+                                const batch = {};
+                                for (let j = i; j < i + batchSize && j < safeVal.length; j++) {
+                                    batch[j] = safeVal[j];
+                                }
+                                ref.update(batch).catch(e => console.error("Chunk error", e));
+                            }
+                            // Purge any lingering tail elements if array shrank
+                            const nullBatch = {};
+                            for (let j = safeVal.length; j < safeVal.length + 500; j++) nullBatch[j] = null;
+                            ref.update(nullBatch).catch(e => {});
+                        } else if (size > 10 * 1024 * 1024) {
                             console.error(`Sync error: Data for ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Max 10MB.`);
                             const statusEl = document.getElementById('sync-status');
                             if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">⚠️ ${key} too large to sync!</span>`;
                             return;
+                        } else {
+                            db.ref(`shops/${shopId}/${key}`).set(safeVal).catch(e => {
+                                console.error(`Firebase Set Error (${key}):`, e);
+                                const statusEl = document.getElementById('sync-status');
+                                if (statusEl) statusEl.innerHTML = `Status: <span class="text-warning">Sync Fail: ${key}</span>`;
+                            });
                         }
-
-                        db.ref(`shops/${shopId}/${key}`).set(safeVal).catch(e => {
-                            console.error(`Firebase Set Error (${key}):`, e);
-                            const statusEl = document.getElementById('sync-status');
-                            if (statusEl) statusEl.innerHTML = `Status: <span class="text-warning">Sync Fail: ${key}</span>`;
-                        });
                     } catch (e) {
                         console.error("Sync Preparation Error:", e);
                     }
@@ -1555,10 +1629,13 @@
 
             initFirebase: () => {
                 const config = {
-                    apiKey: Store.get('fb_apikey', ''),
-                    databaseURL: Store.get('fb_dburl', ''),
-                    projectId: Store.get('fb_projectid', ''),
-                    storageBucket: `${Store.get('fb_projectid', '')}.appspot.com`
+                    apiKey: "AIzaSyC6xsNiKSC0oyCG4QuLdCHKJ0T_9Ae3XgY",
+                    authDomain: "v-billing-id-0001.firebaseapp.com",
+                    databaseURL: "https://v-billing-id-0001-default-rtdb.asia-southeast1.firebasedatabase.app",
+                    projectId: "v-billing-id-0001",
+                    storageBucket: "v-billing-id-0001.firebasestorage.app",
+                    messagingSenderId: "795939440827",
+                    appId: "1:795939440827:web:106152211038bc1e9a419e"
                 };
 
                 if (!config.apiKey || !config.databaseURL) return;
@@ -1582,10 +1659,16 @@
                         if (cloudData) {
                             Store.isSyncing = true; // Prevent loop
                             for (let key in cloudData) {
-                                const localVal = Store.cache['cosmatic_' + key];
+                                const localVal = Store.get(key, []);
                                 const cloudVal = cloudData[key];
 
-                                // Simple merge: if cloud is different, update local
+                                // SAFETY CHECK: Don't let an empty cloud wipe existing local data automatically
+                                // This happens if someone logs in on a new device (like a tablet) for the first time
+                                if (Array.isArray(localVal) && localVal.length > 5 && Array.isArray(cloudVal) && cloudVal.length === 0) {
+                                    console.warn(`Protected local ${key} from being emptied by cloud sync.`);
+                                    continue;
+                                }
+
                                 if (JSON.stringify(localVal) !== JSON.stringify(cloudVal)) {
                                     Store.set(key, cloudVal);
                                 }
@@ -1594,9 +1677,9 @@
 
                             // Refresh UI based on current view
                             const currentView = App.router.currentView;
-                            if (currentView === 'pos') App.pos.render();
+                            if (currentView === 'pos') App.pos.renderProducts();
                             else if (currentView === 'products') App.products.renderTable();
-                            else if (currentView === 'categories') App.categories.renderList();
+                            else if (currentView === 'categories') App.categories.renderTable();
                             else if (currentView === 'customers') App.customers.renderTable();
                             else if (currentView === 'reports') App.reports.renderInvoiceTable();
                             else if (currentView === 'expenses') App.expenses.renderTable();
@@ -1641,16 +1724,46 @@
                     try {
                         let val = Store.get(key, key === 'shop_config' ? {} : []);
                         const safeVal = JSON.parse(JSON.stringify(val));
+
+                        if (key === 'products' && Store.fbReady) {
+                            for (let p of safeVal) {
+                                if (p.image && typeof p.image === 'string' && p.image.startsWith('data:image/')) {
+                                    p.image = await Utils.uploadImageToStorage(p.image, p.id);
+                                    const localMatch = val.find(lp => lp.id === p.id);
+                                    if (localMatch) localMatch.image = p.image;
+                                }
+                            }
+                            Store.cache['cosmatic_products'] = val;
+                            if (Store.db) {
+                                Store.db.transaction(Store.STORE_NAME, 'readwrite').objectStore(Store.STORE_NAME).put(val, 'cosmatic_products');
+                            }
+                        }
+
                         const size = JSON.stringify(safeVal).length;
                         totalSize += size;
 
-                        if (size > 10 * 1024 * 1024) {
+                        if (size > 8 * 1024 * 1024 && Array.isArray(safeVal)) {
+                            // Bypass 10MB limit by paginating the array into chunks
+                            const ref = db.ref(`shops/${shopId}/${key}`);
+                            const batchSize = 25;
+                            for (let i = 0; i < safeVal.length; i += batchSize) {
+                                const batch = {};
+                                for (let j = i; j < i + batchSize && j < safeVal.length; j++) {
+                                    batch[j] = safeVal[j];
+                                }
+                                await ref.update(batch);
+                            }
+                            const nullBatch = {};
+                            for (let j = safeVal.length; j < safeVal.length + 500; j++) nullBatch[j] = null;
+                            await ref.update(nullBatch);
+                            successCount++;
+                        } else if (size > 10 * 1024 * 1024) {
                             if (!isSilent) alert(`❌ Error: ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Firebase limit is 10MB per key. Try optimizing images first.`);
                             continue;
+                        } else {
+                            await db.ref(`shops/${shopId}/${key}`).set(safeVal);
+                            successCount++;
                         }
-
-                        await db.ref(`shops/${shopId}/${key}`).set(safeVal);
-                        successCount++;
                     } catch (e) {
                         console.error(`Error syncing ${key}:`, e);
                     }
@@ -1841,6 +1954,42 @@
                             sessionStorage.removeItem('cosmatic_session');
                             location.reload();
                         }, 1000);
+                    }
+                },
+                googleLogin: async () => {
+                    try {
+                        if (!firebase.apps.length) {
+                            alert("Firebase is not initialized. Please configure API keys first.");
+                            return;
+                        }
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        const result = await firebase.auth().signInWithPopup(provider);
+                        const user = result.user;
+
+                        let users = Store.get('users', []);
+                        let appUser = users.find(u => u.email === user.email || u.id === user.uid);
+                        
+                        if (!appUser) {
+                            appUser = {
+                                id: user.uid,
+                                name: user.displayName || 'Google User',
+                                role: 'admin',
+                                pin: '0000',
+                                is_super: true,
+                                email: user.email
+                            };
+                            users.push(appUser);
+                            Store.set('users', users);
+                        }
+
+                        sessionStorage.setItem('cosmatic_session', JSON.stringify(appUser));
+                        App.user = appUser;
+                        document.getElementById('login-view').classList.add('hidden');
+                        document.getElementById('login-form').reset();
+                        App.router.init();
+                    } catch (error) {
+                        console.error('Google Sign-in Error:', error);
+                        alert("Google Sign-in Failed: " + error.message);
                     }
                 }
             },
@@ -2180,7 +2329,7 @@
                     document.getElementById('prod-cat').innerHTML = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                     App.router.showModal('modal-product');
                 },
-                save: () => {
+                save: async () => {
                     const products = Store.get('products', []);
                     const id = document.getElementById('prod-id').value || Utils.id();
                     const isNew = !products.find(p => p.id === id);
@@ -2191,6 +2340,24 @@
                     if (!name || isNaN(price)) {
                         alert('Name and Selling Price are required');
                         return;
+                    }
+
+                    let finalImage = App.products.tempImage !== null ? App.products.tempImage : (isNew ? '' : (products.find(p => p.id === id)?.image || ''));
+                    if (finalImage && finalImage.startsWith('data:image/') && Store.fbReady) {
+                        try {
+                            const btn = document.querySelector('#modal-product .btn-primary');
+                            let oldText = 'Save';
+                            if (btn) {
+                                oldText = btn.innerText;
+                                btn.innerText = 'Uploading...';
+                                btn.disabled = true;
+                            }
+                            finalImage = await Utils.uploadImageToStorage(finalImage, id);
+                            if (btn) {
+                                btn.innerText = oldText;
+                                btn.disabled = false;
+                            }
+                        } catch(e) { console.error(e); }
                     }
 
                     const prod = {
@@ -2207,7 +2374,7 @@
                         gst_percent: parseFloat(document.getElementById('prod-gst').value) || 0,
                         stock: parseInt(document.getElementById('prod-stock').value) || 0,
                         expiry: document.getElementById('prod-expiry').value,
-                        image: App.products.tempImage !== null ? App.products.tempImage : (isNew ? '' : (products.find(p => p.id === id)?.image || ''))
+                        image: finalImage
                     };
 
                     if (isNew) products.push(prod);
