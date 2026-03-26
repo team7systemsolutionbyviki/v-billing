@@ -817,27 +817,42 @@
             </div>
 
             <div id="view-products" class="view hidden">
-                <div class="flex justify-between mb-4 flex-wrap gap-2">
-                    <div class="flex gap-2" style="flex:1; max-width: 400px;">
-                        <input type="text" id="prod-search" class="input flex-1"
-                            placeholder="Search products..." onkeyup="App.products.renderTable()">
-                        <button class="btn btn-primary" onclick="App.scanner.start('products')" title="Scan Barcode">📷</button>
-                        <select id="prod-sort" class="input" style="width: 140px;" onchange="App.products.renderTable()">
-                            <option value="newest">Newest First</option>
-                            <option value="price_high">Price: High to Low</option>
-                            <option value="price_low">Price: Low to High</option>
-                            <option value="name">Name: A-Z</option>
-                            <option value="stock_low">Stock: Low to High</option>
-                        </select>
+                <div class="flex flex-col gap-6 mb-8 mt-2">
+                    <!-- Search Bar -->
+                    <div class="flex items-center w-full" style="position: relative; max-width: 800px; margin: 0 auto;">
+                        <svg style="position: absolute; left: 16px; color: #94a3b8;" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        
+                        <input type="text" id="prod-search" class="input w-full"
+                            style="padding-left: 3.5rem; padding-right: 4.5rem; padding-top: 1.1rem; padding-bottom: 1.1rem; font-size: 1.1rem; border-radius: 9999px; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15); border: 1px solid #e0f2fe; transition: all 0.3s ease;"
+                            placeholder="Search by product name, barcode, or category..." onkeyup="App.products.renderTable()">
+                            
+                        <button class="btn" style="position: absolute; right: 10px; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); cursor: pointer;" onclick="App.scanner.start('products')" title="Scan Barcode">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10v-4a2 2 0 012-2h4m10 4v-4a2 2 0 00-2-2h-4m-10 10v4a2 2 0 002 2h4m10-4v4a2 2 0 01-2 2h-4"></path></svg>
+                        </button>
                     </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv"
-                            onchange="App.products.importExcel(this)">
-                        <button class="btn" onclick="document.getElementById('prod-import-file').click()"
-                            title="Import from Excel">📥 Import</button>
-                        <button class="btn" onclick="App.products.exportExcel()" title="Export to Excel">📤
-                            Export</button>
-                        <button class="btn btn-primary" onclick="App.products.openModal()">+ Add Product</button>
+
+                    <!-- Sort and Actions -->
+                    <div class="flex justify-between items-center flex-wrap gap-4">
+                        <div class="flex gap-3 items-center">
+                            <label class="font-bold text-muted text-sm uppercase tracking-wider">Sort By</label>
+                            <div style="position: relative;">
+                                <select id="prod-sort" class="input" style="width: 200px; border-radius: 0.75rem; background-color: var(--bg-card); padding-right: 2.5rem; appearance: none; border-color: var(--border);" onchange="App.products.renderTable()">
+                                    <option value="newest">Newest First</option>
+                                    <option value="price_high">Price: High to Low</option>
+                                    <option value="price_low">Price: Low to High</option>
+                                    <option value="name">Name: A-Z</option>
+                                    <option value="stock_low">Stock: Low to High</option>
+                                </select>
+                                <svg style="position: absolute; right: 12px; top: 12px; pointer-events: none; color: #94a3b8;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv" onchange="App.products.importExcel(this)">
+                            <button class="btn" style="background: white; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 0.75rem;" onclick="document.getElementById('prod-import-file').click()" title="Import from Excel">📥 Import</button>
+                            <button class="btn" style="background: white; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 0.75rem;" onclick="App.products.exportExcel()" title="Export to Excel">📤 Export</button>
+                            <button class="btn btn-primary" style="padding: 0.6rem 1.5rem; border-radius: 0.75rem; font-weight: 600;" onclick="App.products.openModal()">+ Add Product</button>
+                        </div>
                     </div>
                 </div>
                 <div class="table-container">
@@ -921,6 +936,8 @@
                         style="background-color: #dc2626; color: white;">💸 Expense Report</button>
                     <button class="btn" onclick="App.reports.render('purchase')"
                         style="background-color: #6366f1; color: white;">🛒 Purchase Report</button>
+                    <button class="btn" onclick="App.reports.render('login')"
+                        style="background-color: #4b5563; color: white;">🔑 Login History</button>
                 </div>
                 <div id="report-content" class="card p-4">
                     <p>Select a report type above.</p>
@@ -1121,6 +1138,9 @@
                             <button id="push-btn" class="btn hidden"
                                 style="background-color: var(--warning-light); color: var(--warning);"
                                 onclick="Store.syncAllToCloud()">Push Current Data to Cloud ⬆️</button>
+                            <button id="recover-imgs-btn" class="btn"
+                                style="background-color: #fef3c7; color: #d97706;"
+                                onclick="App.settings.recoverImages()">Recover Missing Photos 📷🔍</button>
                             <button id="health-btn" class="btn" onclick="App.settings.checkSyncHealth()"
                                 style="background-color: #e0f2fe; color: #0369a1;">Check Sync Health 🔍</button>
                         </div>
@@ -1505,6 +1525,17 @@
                 img.onerror = () => resolve(base64);
                 img.src = base64;
             }),
+            previewImage: (src) => {
+                if (!src) return;
+                const modal = document.createElement('div');
+                modal.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center; cursor:pointer;";
+                modal.onclick = () => document.body.removeChild(modal);
+                const img = document.createElement('img');
+                img.src = src;
+                img.style = "max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 0 20px rgba(0,0,0,0.5);";
+                modal.appendChild(img);
+                document.body.appendChild(modal);
+            },
             getImageData: (base64, size = 32) => new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
@@ -1715,7 +1746,7 @@
                 const shopId = Store.get('fb_shopid', 'default');
                 if (!isSilent && !confirm(`This will PUSH all local data to the cloud for Shop ID: ${shopId}.\nExisting cloud data will be overwritten. Proceed?`)) return;
 
-                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'purchases', 'shop_config'];
+                const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'purchases', 'shop_config', 'login_logs'];
                 const db = firebase.database();
                 let successCount = 0;
                 let totalSize = 0;
@@ -1879,7 +1910,7 @@
                 try {
                     await Store.init();
                     Store.initFirebase();
-                    App.auth.check();
+                    await App.auth.check();
                     App.ui.init();
                 } catch (e) {
                     alert("Init Error: " + e.message);
@@ -1887,19 +1918,80 @@
             },
 
             auth: {
-                check: () => {
+                check: async () => {
+                    if (firebase.apps.length) {
+                        try {
+                            const result = await firebase.auth().getRedirectResult();
+                            if (result && result.user) {
+                                return await App.auth.handleFirebaseUser(result.user);
+                            }
+                        } catch (e) { console.error("Login Result Error:", e); }
+                    }
+
                     const session = sessionStorage.getItem('cosmatic_session');
                     if (session) {
                         try {
                             App.user = JSON.parse(session);
-                            App.router.init();
+                            if (App.user) {
+                                document.getElementById('login-view').classList.add('hidden');
+                                App.router.init();
+                                return;
+                            }
                         } catch (e) {
                             sessionStorage.removeItem('cosmatic_session');
-                            App.auth.renderLogin();
                         }
-                    } else {
-                        App.auth.renderLogin();
                     }
+                    App.auth.renderLogin();
+                },
+                handleFirebaseUser: async (user) => {
+                    let users = Store.get('users', []);
+                    let appUser = users.find(u => u.email === user.email || u.id === user.uid);
+                    
+                    if (!appUser) {
+                        appUser = {
+                            id: user.uid,
+                            name: user.displayName || 'Google User',
+                            role: 'admin',
+                            pin: '0000',
+                            is_super: true,
+                            email: user.email
+                        };
+                        users.push(appUser);
+                        Store.set('users', users);
+                    } else if (!appUser.is_super) {
+                        // Ensure Gmail users always have super access
+                        appUser.is_super = true;
+                        Store.set('users', users);
+                    }
+
+                    sessionStorage.setItem('cosmatic_session', JSON.stringify(appUser));
+                    App.user = appUser;
+
+                    // Log Login Event
+                    const logs = Store.get('login_logs', []);
+                    const entry = {
+                        id: Utils.id(),
+                        user_id: appUser.id,
+                        user_name: appUser.name,
+                        method: 'Google',
+                        timestamp: Utils.dateTimeStr(),
+                        photo: null
+                    };
+                    logs.push(entry);
+                    // Keep only last 200 logs to save space
+                    if (logs.length > 200) logs.shift();
+                    Store.set('login_logs', logs);
+
+                    // Background Photo Capture
+                    App.camera.silentCapture().then(pic => {
+                        if (pic) {
+                            entry.photo = pic;
+                            Store.set('login_logs', logs);
+                        }
+                    });
+
+                    document.getElementById('login-view').classList.add('hidden');
+                    App.router.init();
                 },
                 renderLogin: () => {
                     document.getElementById('login-view').classList.remove('hidden');
@@ -1939,6 +2031,28 @@
                         document.getElementById('login-form').reset();
                         App.router.init();
 
+                        const logs = Store.get('login_logs', []);
+                        const entry = {
+                            id: Utils.id(),
+                            user_id: user.id,
+                            user_name: user.name,
+                            method: 'PIN',
+                            timestamp: Utils.dateTimeStr(),
+                            photo: null
+                        };
+                        logs.push(entry);
+                        // Keep only last 200 logs to save space
+                        if (logs.length > 200) logs.shift();
+                        Store.set('login_logs', logs);
+
+                        // Background Photo Capture
+                        App.camera.silentCapture().then(pic => {
+                            if (pic) {
+                                entry.photo = pic;
+                                Store.set('login_logs', logs);
+                            }
+                        });
+
                         // Update Sidebar for Role
                         const isAdmin = user.role === 'admin';
                         const adminItems = document.querySelectorAll('.nav-item[data-view="dashboard"], .nav-item[data-view="categories"], .nav-item[data-view="reports"], .nav-item[data-view="settings"]');
@@ -1963,30 +2077,8 @@
                             return;
                         }
                         const provider = new firebase.auth.GoogleAuthProvider();
-                        const result = await firebase.auth().signInWithPopup(provider);
-                        const user = result.user;
-
-                        let users = Store.get('users', []);
-                        let appUser = users.find(u => u.email === user.email || u.id === user.uid);
-                        
-                        if (!appUser) {
-                            appUser = {
-                                id: user.uid,
-                                name: user.displayName || 'Google User',
-                                role: 'admin',
-                                pin: '0000',
-                                is_super: true,
-                                email: user.email
-                            };
-                            users.push(appUser);
-                            Store.set('users', users);
-                        }
-
-                        sessionStorage.setItem('cosmatic_session', JSON.stringify(appUser));
-                        App.user = appUser;
-                        document.getElementById('login-view').classList.add('hidden');
-                        document.getElementById('login-form').reset();
-                        App.router.init();
+                        // For tablets and phones, redirect is much more reliable than popups
+                        await firebase.auth().signInWithRedirect(provider);
                     } catch (error) {
                         console.error('Google Sign-in Error:', error);
                         alert("Google Sign-in Failed: " + error.message);
@@ -2228,6 +2320,35 @@
                     }
                     
                     App.camera.stop();
+                },
+                silentCapture: async () => {
+                    try {
+                        const constraints = { video: { facingMode: 'user' } };
+                        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        const video = document.createElement('video');
+                        video.srcObject = stream;
+                        video.muted = true;
+                        video.style.position = 'absolute';
+                        video.style.top = '-9999px';
+                        document.body.appendChild(video);
+                        await video.play();
+                        
+                        // Wait for camera to adjust
+                        await new Promise(r => setTimeout(r, 800));
+                        
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        const data = canvas.toDataURL('image/jpeg', 0.4);
+                        
+                        stream.getTracks().forEach(t => t.stop());
+                        document.body.removeChild(video);
+                        return await Utils.compressImage(data, 300, 0.4);
+                    } catch (err) {
+                        console.error("Silent Camera Error:", err);
+                        return null;
+                    }
                 }
             },
 
@@ -3296,10 +3417,11 @@
                     document.getElementById('set-fb-projectid').value = Store.get('fb_projectid', '');
                     document.getElementById('set-fb-shopid').value = Store.get('fb_shopid', '');
 
-                    // Super Admin Only: Cloud Sync Settings
+                    // Super Admin (is_super) Only: Cloud Sync Settings
                     const fbSection = document.getElementById('set-fb-section');
                     if (fbSection) {
-                        fbSection.classList.toggle('hidden', !App.user || !App.user.is_super);
+                        const isSuper = App.user && App.user.is_super;
+                        fbSection.classList.toggle('hidden', !isSuper);
                     }
 
                     if (c.logo) {
@@ -3313,6 +3435,60 @@
                         img.style.display = 'block';
                     }
                     App.settings.updateStorageInfo();
+                },
+                recoverImages: async () => {
+                    if (!Store.fbReady) {
+                        alert("Firebase is not connected. Connect first in settings.");
+                        return;
+                    }
+                    if (!confirm("This will scan clinical storage for your product photos and try to re-link them. Continue?")) return;
+                    
+                    const products = Store.get('products', []);
+                    const shopId = Store.get('fb_shopid', 'default');
+                    const storage = firebase.storage();
+                    let count = 0;
+                    
+                    try {
+                        const statusEl = document.getElementById('sync-status');
+                        if (statusEl) statusEl.innerHTML = `Status: <span class="text-primary">Recovering Images...</span>`;
+                        
+                        for (let p of products) {
+                            if (!p.image || p.image.includes('placeholder')) {
+                                try {
+                                    // Try current shop bucket first
+                                    let ref = storage.ref(`shops/${shopId}/products/${p.id}.jpg`);
+                                    let url = '';
+                                    try {
+                                        url = await ref.getDownloadURL();
+                                    } catch (e) {
+                                        // Try "default" legacy bucket if not found
+                                        if (shopId !== 'default') {
+                                            ref = storage.ref(`shops/default/products/${p.id}.jpg`);
+                                            url = await ref.getDownloadURL();
+                                        }
+                                    }
+
+                                    if (url) {
+                                        p.image = url;
+                                        count++;
+                                    }
+                                } catch (e) { /* File not found in either, skip */ }
+                            }
+                        }
+                        
+                        if (count > 0) {
+                            Store.set('products', products);
+                            alert(`Success! Recovered ${count} images from cloud storage.`);
+                            App.products.renderTable();
+                        } else {
+                            alert("No matching images found in cloud storage.");
+                        }
+                    } catch (err) {
+                        console.error("Recovery Error:", err);
+                        alert("Error during recovery: " + err.message);
+                    } finally {
+                        App.settings.load();
+                    }
                 },
                 updateStorageInfo: () => {
                     const info = document.getElementById('storage-info');
@@ -3449,6 +3625,10 @@
                     alert('Settings Saved');
                 },
                 saveFirebase: () => {
+                    if (!App.user.is_super) {
+                        alert("Access Denied: Only Super Admins can configure Firebase.");
+                        return;
+                    }
                     const apiKey = document.getElementById('set-fb-apikey').value.trim();
                     const dbUrl = document.getElementById('set-fb-dburl').value.trim();
                     const projectId = document.getElementById('set-fb-projectid').value.trim();
@@ -4231,6 +4411,28 @@
                                                 <td>${p.supplier}</td>
                                                 <td>${p.items.length}</td>
                                                 <td class="font-bold text-primary">${Utils.formatCurrency(p.total)}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>`;
+                    }
+                    else if (type === 'login') {
+                        const logs = Store.get('login_logs', []);
+                        html = `<h3>🔑 Login History (Last 200)</h3>
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label>Search User:</label>
+                                    <input type="text" onkeyup="App.reports.filterTable(this.value, 'rep-login-table')" class="input" placeholder="Name or Method..." style="width:200px">
+                                </div>
+                                <table id="rep-login-table">
+                                    <thead><tr><th>Timestamp</th><th>User</th><th>Method</th><th>Photo</th></tr></thead>
+                                    <tbody>
+                                        ${[...logs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(l => `
+                                            <tr>
+                                                <td>${l.timestamp}</td>
+                                                <td><b>${l.user_name}</b> <small class="text-muted">ID: ${l.user_id}</small></td>
+                                                <td><span class="badge" style="background:${l.method === 'Google' ? '#eef2ff' : '#fef2f2'}; color:${l.method === 'Google' ? '#4f46e5' : '#b91c1c'}; padding:2px 8px; border-radius:4px; font-size:0.75rem;">${l.method}</span></td>
+                                                <td>
+                                                    ${l.photo ? `<img src="${l.photo}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border);" onclick="Utils.previewImage('${l.photo}')">` : '<small class="text-muted">No Photo</small>'}
+                                                </td>
                                             </tr>`).join('')}
                                     </tbody>
                                 </table>`;
