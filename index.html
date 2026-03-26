@@ -1570,22 +1570,19 @@
                     const shopId = Store.get('fb_shopid', 'default');
                     const ref = storage.ref(`shops/${shopId}/products/${productId}.jpg`);
                     
-                    // Robust base64 to Blob conversion for legacy/tablet browsers
-                    const parts = base64.split(';base64,');
-                    const contentType = parts[0].split(':')[1];
-                    const raw = window.atob(parts[1]);
-                    const rawLength = raw.length;
-                    const uInt8Array = new Uint8Array(rawLength);
-                    for (let i = 0; i < rawLength; ++i) {
-                        uInt8Array[i] = raw.charCodeAt(i);
-                    }
-                    const blob = new Blob([uInt8Array], { type: contentType });
+                    // Use putString with data_url format for better reliability and performance
+                    const uploadTask = ref.putString(base64, 'data_url');
+                    
+                    // Implement a 10-second timeout to prevent the UI from hanging
+                    const timeout = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error("Firebase Storage Timeout")), 10000)
+                    );
 
-                    await ref.put(blob);
+                    await Promise.race([uploadTask, timeout]);
                     return await ref.getDownloadURL();
                 } catch (e) {
-                    console.error("Storage upload failed", e);
-                    return base64; // Fallback to local base64 storage
+                    console.error("Storage upload failed or timed out, falling back to local storage:", e);
+                    return base64; // Fallback to local base64 storage to ensure product can be saved
                 }
             },
             compareImages: async (data1, data2) => {
