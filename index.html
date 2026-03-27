@@ -865,6 +865,11 @@
                             <input type="file" id="prod-import-file" class="hidden" accept=".xlsx, .xls, .csv" onchange="App.products.importExcel(this)">
                             <button class="btn" style="background: white; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 0.75rem;" onclick="document.getElementById('prod-import-file').click()" title="Import from Excel">📥 Import</button>
                             <button class="btn" style="background: white; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 0.75rem;" onclick="App.products.exportExcel()" title="Export to Excel">📤 Export</button>
+                            
+                            <!-- Bulk Image Matcher -->
+                            <input type="file" id="prod-bulk-images" class="hidden" accept="image/*" multiple onchange="App.products.bulkMatchImages(this)">
+                            <button class="btn" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 0.6rem 1.2rem; border-radius: 0.75rem;" onclick="document.getElementById('prod-bulk-images').click()" title="Select multiple images to match products by ID or Name">⚡ Bulk Match Images</button>
+
                             <button class="btn btn-primary" style="padding: 0.6rem 1.5rem; border-radius: 0.75rem; font-weight: 600;" onclick="App.products.openModal()">+ Add Product</button>
                         </div>
                     </div>
@@ -2458,6 +2463,57 @@
                         `;
                         }).join('');
                     tbody.innerHTML = html;
+                },
+                bulkMatchImages: async (input) => {
+                    const files = Array.from(input.files);
+                    if (files.length === 0) return;
+
+                    const products = Store.get('products', []);
+                    let matchCount = 0;
+                    
+                    const btn = document.querySelector('button[onclick*="prod-bulk-images"]');
+                    const oldText = btn.innerText;
+                    btn.innerText = `Matching 0/${files.length}...`;
+                    btn.disabled = true;
+
+                    for (const file of files) {
+                        const fullName = file.name; 
+                        const nameWithoutExt = fullName.split('.').slice(0, -1).join('.').trim().toLowerCase();
+                        
+                        const match = products.find(p => 
+                            p.id.toLowerCase() === nameWithoutExt || 
+                            (p.barcode && p.barcode.toLowerCase() === nameWithoutExt) || 
+                            p.name.toLowerCase() === nameWithoutExt
+                        );
+
+                        if (match) {
+                            try {
+                                const raw = await Utils.readFile(file);
+                                const compressed = await Utils.compressImage(raw, 500, 0.6);
+                                
+                                let finalImage = compressed;
+                                if (Store.fbReady) {
+                                    finalImage = await Utils.uploadImageToStorage(compressed, match.id);
+                                }
+                                
+                                match.image = finalImage;
+                                matchCount++;
+                                btn.innerText = `Matching ${matchCount}/${files.length}...`;
+                            } catch (e) { console.error(`Failed to process ${fullName}`, e); }
+                        }
+                    }
+
+                    if (matchCount > 0) {
+                        Store.set('products', products);
+                        App.products.renderTable();
+                        alert(`Successfully matched and updated ${matchCount} products!`);
+                    } else {
+                        alert("No matches found. Ensure your image file names match Product IDs, Names, or Barcodes.");
+                    }
+
+                    btn.innerText = oldText;
+                    btn.disabled = false;
+                    input.value = ''; 
                 },
                 openModal: () => {
                     document.getElementById('prod-id').value = '';
