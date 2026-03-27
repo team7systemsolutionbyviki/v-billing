@@ -1600,6 +1600,20 @@
                 }
                 const maxDiff = 255 * 3 * (data1.length / 4);
                 return 1 - (diff / maxDiff);
+            },
+            lookupBarcode: async (barcode) => {
+                if (!barcode) return null;
+                try {
+                    // Try Open Food Facts - very reliable for barcodes
+                    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+                    const data = await res.json();
+                    if (data && data.status === 1 && data.product) {
+                        return data.product.product_name || data.product.generic_name || null;
+                    }
+                    return null;
+                } catch (e) {
+                    return null;
+                }
             }
         };
 
@@ -2473,18 +2487,63 @@
                     
                     const btn = document.querySelector('button[onclick*="prod-bulk-images"]');
                     const oldText = btn.innerText;
-                    btn.innerText = `Matching 0/${files.length}...`;
                     btn.disabled = true;
+
+                    // Initialize a temporary scanner for file matching
+                    const html5QrCode = new Html5Qrcode("reader-container");
 
                     for (const file of files) {
                         const fullName = file.name; 
                         const nameWithoutExt = fullName.split('.').slice(0, -1).join('.').trim().toLowerCase();
-                        
-                        const match = products.find(p => 
+                        btn.innerText = `Analyzing ${fullName}...`;
+
+                        // 1. Try Filename Match (Barcode, Name, or ID)
+                        let match = products.find(p => 
                             p.id.toLowerCase() === nameWithoutExt || 
                             (p.barcode && p.barcode.toLowerCase() === nameWithoutExt) || 
                             p.name.toLowerCase() === nameWithoutExt
                         );
+
+                        // 2. Fallback: Scan the content of the image for a Barcode
+                        if (!match) {
+                            try {
+                                const result = await html5QrCode.scanFile(file, true);
+                                if (result) {
+                                    const existing = products.find(p => p.barcode && p.barcode === result);
+                                    if (existing) {
+                                        match = existing;
+                                        console.log(`Matched ${fullName} to existing product ${match.name} via Barcode Scan: ${result}`);
+                                    } else {
+                                        // 3. Auto-create product if barcode exists in image but NOT in database
+                                        const cats = Store.get('categories', []);
+                                        const defaultCatId = cats.length > 0 ? cats[0].id : 'MISC';
+                                        
+                                        // Attempt to find name from global database for non-named files
+                                        btn.innerText = `Searching Cloud for ${result}...`;
+                                        const cloudName = await Utils.lookupBarcode(result);
+                                        const finalName = cloudName || (nameWithoutExt.startsWith('img_') || nameWithoutExt.startsWith('image_') || !isNaN(nameWithoutExt) ? `Product ${result}` : nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1));
+
+                                        match = {
+                                            id: Utils.id(),
+                                            name: finalName,
+                                            brand: '',
+                                            barcode: result,
+                                            category_id: defaultCatId,
+                                            price: 0,
+                                            cost: 0,
+                                            stock: 0,
+                                            unit: 'pcs',
+                                            hsn: '',
+                                            batch: '',
+                                            gst_percent: 0,
+                                            image: '' 
+                                        };
+                                        products.push(match);
+                                        console.log(`Auto-created NEW product "${match.name}" via Barcode Scan & Cloud Lookup: ${result}`);
+                                    }
+                                }
+                            } catch (e) { /* No barcode found in image */ }
+                        }
 
                         if (match) {
                             try {
@@ -2498,7 +2557,7 @@
                                 
                                 match.image = finalImage;
                                 matchCount++;
-                                btn.innerText = `Matching ${matchCount}/${files.length}...`;
+                                btn.innerText = `Progress: ${matchCount}/${files.length}`;
                             } catch (e) { console.error(`Failed to process ${fullName}`, e); }
                         }
                     }
@@ -2508,12 +2567,13 @@
                         App.products.renderTable();
                         alert(`Successfully matched and updated ${matchCount} products!`);
                     } else {
-                        alert("No matches found. Ensure your image file names match Product IDs, Names, or Barcodes.");
+                        alert("No matches found. Ensure your image file names match Product IDs/Barcodes, OR that the images contain a clear, scannable barcode.");
                     }
 
                     btn.innerText = oldText;
                     btn.disabled = false;
                     input.value = ''; 
+                    try { html5QrCode.clear(); } catch(e){}
                 },
                 openModal: () => {
                     document.getElementById('prod-id').value = '';
