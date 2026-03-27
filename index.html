@@ -2095,17 +2095,31 @@
                     }
                 },
                 logout: async () => {
-                    if (confirm("Logout now? A backup will be downloaded automatically.")) {
-                        App.settings.backup();
-                        // Ensure everything is pushed to the cloud before clearing the session
-                        if (Store.fbReady) {
-                            try {
-                                await Store.syncAllToCloud(true);
-                            } catch (e) { console.error("Final sync failed", e); }
-                        }
-                        sessionStorage.removeItem('cosmatic_session');
-                        location.reload();
+                    if (!confirm("Logout now?")) return;
+
+                    // 1. Show Logout Feedback
+                    const overlay = document.createElement('div');
+                    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; font-family:var(--font-main);";
+                    overlay.innerHTML = `<div style="font-size:4rem; margin-bottom:1rem;">🚪</div>
+                                         <div style="font-size:1.5rem; font-weight:bold; color:var(--primary);">Logging Out...</div>
+                                         <div style="margin-top:1rem; color:#64748b;">Securing your data and cloud sync</div>`;
+                    document.body.appendChild(overlay);
+
+                    // 2. Perform Final Sync with a strict timeout
+                    if (Store.fbReady) {
+                        try {
+                            const syncPromise = Store.syncAllToCloud(true);
+                            const timeoutPromise = new Promise(r => setTimeout(r, 4000)); // 4s timeout
+                            await Promise.race([syncPromise, timeoutPromise]);
+                        } catch (e) { console.error("Final sync failed", e); }
                     }
+
+                    // 3. Optional Backup (Non-blocking)
+                    try { App.settings.backup(); } catch(e){}
+
+                    // 4. Final Logout
+                    sessionStorage.removeItem('cosmatic_session');
+                    setTimeout(() => location.reload(), 500); // Small delay to show overlay
                 },
                 googleLogin: async () => {
                     try {
@@ -2484,97 +2498,130 @@
                     if (files.length === 0) return;
 
                     const products = Store.get('products', []);
-                    let matchCount = 0;
+                    const cats = Store.get('categories', []);
+                    const defaultCatId = cats.length > 0 ? cats[0].id : 'MISC';
                     
                     const btn = document.querySelector('button[onclick*="prod-bulk-images"]');
                     const oldText = btn.innerText;
                     btn.disabled = true;
 
-                    // Initialize a temporary scanner for file matching
+                    let matchCount = 0;
+                    let processedCount = 0;
+                    
+                    // Initialize scanners for the whole batch
                     const html5QrCode = new Html5Qrcode("reader-container");
+                    
+                    // Use a persistent OCR worker for better performance and stability
+                    let worker = null;
+                    try {
+                        worker = await Tesseract.createWorker('eng', 1, { logger: m => console.log(m.status, m.progress) });
+                    } catch (e) {
+                        console.error("Failed to initialize OCR worker", e);
+                    }
 
-                    for (const file of files) {
-                        const fullName = file.name; 
-                        const nameWithoutExt = fullName.split('.').slice(0, -1).join('.').trim().toLowerCase();
-                        btn.innerText = `Analyzing ${fullName}...`;
+                    // Parallel processing with a limit of 3 concurrent images for max speed
+                    const limit = 3;
+                    const chunks = [];
+                    for (let i = 0; i < files.length; i += limit) {
+                        chunks.push(files.slice(i, i + limit));
+                    }
 
-                        let scannedBarcode = null;
-                        let match = products.find(p => 
-                            p.id.toLowerCase() === nameWithoutExt || 
-                            (p.barcode && p.barcode.toLowerCase() === nameWithoutExt) || 
-                            p.name.toLowerCase() === nameWithoutExt
-                        );
-
-                        // 1. Scan for Barcode in the picture anyway to "EXTRACT" info
-                        try {
-                            const result = await html5QrCode.scanFile(file, true);
-                            if (result) {
-                                scannedBarcode = result;
-                                // If no match yet, search by extracted barcode
-                                if (!match) match = products.find(p => p.barcode && p.barcode === scannedBarcode);
-                                
-                                // NEW: If we matched by name but barcode was missing/different, EXTRACT IT!
-                                if (match && (!match.barcode || match.barcode === '')) {
-                                    match.barcode = scannedBarcode;
-                                    console.log(`Extracted barcode ${scannedBarcode} and saved to ${match.name}`);
-                                }
-                            }
-                        } catch (e) { /* No barcode in image */ }
-
-                        // 2. If STILL no match, auto-create using extracted info
-                        if (!match) {
-                            const cats = Store.get('categories', []);
-                            const defaultCatId = cats.length > 0 ? cats[0].id : 'MISC';
-                            
-                            let finalName = nameWithoutExt.startsWith('img_') || nameWithoutExt.startsWith('image_') || !isNaN(nameWithoutExt) ? null : nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1);
-                            
-                            if (scannedBarcode) {
-                                btn.innerText = `Searching Cloud for ${scannedBarcode}...`;
-                                const cloudName = await Utils.lookupBarcode(scannedBarcode);
-                                if (cloudName) finalName = cloudName;
-                            }
-
-                            // Still no name? USE TEXT EXTRACT (OCR)
-                            if (!finalName || finalName.toLowerCase().startsWith('product')) {
-                                try {
-                                    btn.innerText = `Extracting Text from ${fullName}...`;
-                                    const { data: { text } } = await Tesseract.recognize(file, 'eng');
-                                    if (text && text.trim().length > 3) {
-                                        // Pick first non-empty line as the name
-                                        const cleanText = text.split('\n').map(l => l.trim()).filter(l => l.length > 3)[0];
-                                        if (cleanText) finalName = cleanText;
-                                    }
-                                } catch (e) { console.error("OCR Failed", e); }
-                            }
-
-                            if (!finalName) finalName = scannedBarcode ? `Product ${scannedBarcode}` : `New ${fullName}`;
-
-                            match = {
-                                id: Utils.id(),
-                                name: finalName,
-                                barcode: scannedBarcode || '',
-                                category_id: defaultCatId,
-                                price: 0, cost: 0, stock: 0, unit: 'pcs',
-                                image: '' 
-                            };
-                            products.push(match);
-                        }
-
-                        if (match) {
+                    for (const chunk of chunks) {
+                        await Promise.all(chunk.map(async (file) => {
                             try {
-                                const raw = await Utils.readFile(file);
-                                const compressed = await Utils.compressImage(raw, 500, 0.6);
-                                
-                                let finalImage = compressed;
-                                if (Store.fbReady) {
-                                    finalImage = await Utils.uploadImageToStorage(compressed, match.id);
+                                processedCount++;
+                                const fullName = file.name; 
+                                const nameWithoutExt = fullName.split('.').slice(0, -1).join('.').trim().toLowerCase();
+                                btn.innerText = `[${processedCount}/${files.length}] Analyzing ${fullName}...`;
+
+                                const genericPrefixes = ['whatsapp', 'img_', 'image_', 'scr_', 'screenshot', '202', 'new', 'temp'];
+                                const isGenericName = genericPrefixes.some(p => nameWithoutExt.startsWith(p)) || !isNaN(nameWithoutExt) || nameWithoutExt.length < 3;
+
+                                let scannedBarcode = null;
+                                let match = products.find(p => 
+                                    p.id.toLowerCase() === nameWithoutExt || 
+                                    (p.barcode && p.barcode.toLowerCase() === nameWithoutExt) || 
+                                    p.name.toLowerCase() === nameWithoutExt
+                                );
+
+                                // 1. Scan for Barcode
+                                try {
+                                    const result = await html5QrCode.scanFile(file, true);
+                                    if (result) {
+                                        scannedBarcode = result;
+                                        if (!match) match = products.find(p => p.barcode && p.barcode === scannedBarcode);
+                                        if (match && (!match.barcode || match.barcode === '')) match.barcode = scannedBarcode;
+                                    }
+                                } catch (e) { /* No barcode */ }
+
+                                // 2. Auto-create if no match
+                                if (!match) {
+                                    let finalName = !isGenericName ? nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1) : null;
+                                    
+                                    if (scannedBarcode) {
+                                        finalName = await Utils.lookupBarcode(scannedBarcode) || finalName;
+                                    }
+
+                                    // 3. OCR (Only if needed)
+                                    if ((!finalName || finalName.toLowerCase().startsWith('product')) && worker) {
+                                        try {
+                                            const img = new Image();
+                                            img.src = await Utils.readFile(file);
+                                            await new Promise(r => img.onload = r);
+                                            const canvas = document.createElement('canvas');
+                                            const ctx = canvas.getContext('2d');
+                                            const scale = Math.min(1, 800 / img.width);
+                                            canvas.width = img.width * scale; canvas.height = img.height * scale;
+                                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                            const d = imageData.data;
+                                            for (let i = 0; i < d.length; i += 4) {
+                                                const gray = (d[i] + d[i + 1] + d[i + 2]) / 3;
+                                                d[i] = d[i+1] = d[i+2] = (gray > 128) ? 255 : 0;
+                                            }
+                                            ctx.putImageData(imageData, 0, 0);
+                                            const { data: { text } } = await worker.recognize(canvas.toDataURL());
+                                            if (text && text.trim().length > 3) {
+                                                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+                                                const candidate = lines.find(l => /[a-zA-Z]/.test(l)) || lines[0];
+                                                if (candidate) finalName = candidate;
+                                            }
+                                        } catch (e) { console.error("OCR Failed", e); }
+                                    }
+
+                                    if (!finalName) finalName = scannedBarcode ? `Product ${scannedBarcode}` : `New ${fullName}`;
+
+                                    match = {
+                                        id: Utils.id(),
+                                        name: finalName,
+                                        barcode: scannedBarcode || '',
+                                        category_id: defaultCatId,
+                                        price: 0, cost: 0, stock: 0, unit: 'pcs',
+                                        image: '' 
+                                    };
+                                    products.push(match);
                                 }
-                                
-                                match.image = finalImage;
-                                matchCount++;
-                                btn.innerText = `Progress: ${matchCount}/${files.length}`;
-                            } catch (e) { console.error(`Failed to process ${fullName}`, e); }
-                        }
+
+                                if (match) {
+                                    const raw = await Utils.readFile(file);
+                                    const compressed = await Utils.compressImage(raw, 500, 0.6);
+                                    
+                                    match.image = compressed; // Set local compressed first for speed
+                                    matchCount++;
+
+                                    // Background upload to avoid blocking the batch
+                                    if (Store.fbReady) {
+                                        Utils.uploadImageToStorage(compressed, match.id).then(url => {
+                                            const latestProds = Store.get('products', []);
+                                            const p = latestProds.find(x => x.id === match.id);
+                                            if (p) { p.image = url; Store.set('products', latestProds); }
+                                        }).catch(e => console.error(e));
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("Chunk processing error", e);
+                            }
+                        }));
                     }
 
                     if (matchCount > 0) {
@@ -2582,13 +2629,15 @@
                         App.products.renderTable();
                         alert(`Successfully matched and updated ${matchCount} products!`);
                     } else {
-                        alert("No matches found. Ensure your image file names match Product IDs/Barcodes, OR that the images contain a clear, scannable barcode.");
+                        alert("No matches found. Try images with clearer barcodes or text labels.");
                     }
 
+                    // Cleanup
                     btn.innerText = oldText;
                     btn.disabled = false;
                     input.value = ''; 
                     try { html5QrCode.clear(); } catch(e){}
+                    if (worker) { try { await worker.terminate(); } catch(e){} }
                 },
                 openModal: () => {
                     document.getElementById('prod-id').value = '';
@@ -2625,21 +2674,19 @@
                     }
 
                     let finalImage = App.products.tempImage !== null ? App.products.tempImage : (isNew ? '' : (products.find(p => p.id === id)?.image || ''));
+                    
+                    // Background Upload Strategy for "Work Faster"
                     if (finalImage && finalImage.startsWith('data:image/') && Store.fbReady) {
-                        try {
-                            const btn = document.querySelector('#modal-product .btn-primary');
-                            let oldText = 'Save';
-                            if (btn) {
-                                oldText = btn.innerText;
-                                btn.innerText = 'Uploading...';
-                                btn.disabled = true;
+                        // Start upload in background, don't await it
+                        Utils.uploadImageToStorage(finalImage, id).then(url => {
+                            const prods = Store.get('products', []);
+                            const p = prods.find(x => x.id === id);
+                            if (p) {
+                                p.image = url;
+                                Store.set('products', prods);
+                                console.log("Background Image Sync Complete for", p.name);
                             }
-                            finalImage = await Utils.uploadImageToStorage(finalImage, id);
-                            if (btn) {
-                                btn.innerText = oldText;
-                                btn.disabled = false;
-                            }
-                        } catch(e) { console.error(e); }
+                        }).catch(e => console.error("Background Upload Failed", e));
                     }
 
                     const prod = {
