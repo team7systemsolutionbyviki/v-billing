@@ -12,6 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -2497,52 +2498,66 @@
                         const nameWithoutExt = fullName.split('.').slice(0, -1).join('.').trim().toLowerCase();
                         btn.innerText = `Analyzing ${fullName}...`;
 
-                        // 1. Try Filename Match (Barcode, Name, or ID)
+                        let scannedBarcode = null;
                         let match = products.find(p => 
                             p.id.toLowerCase() === nameWithoutExt || 
                             (p.barcode && p.barcode.toLowerCase() === nameWithoutExt) || 
                             p.name.toLowerCase() === nameWithoutExt
                         );
 
-                        // 2. Fallback: Scan the content of the image for a Barcode
-                        if (!match) {
-                            try {
-                                const result = await html5QrCode.scanFile(file, true);
-                                if (result) {
-                                    const existing = products.find(p => p.barcode && p.barcode === result);
-                                    if (existing) {
-                                        match = existing;
-                                        console.log(`Matched ${fullName} to existing product ${match.name} via Barcode Scan: ${result}`);
-                                    } else {
-                                        // 3. Auto-create product if barcode exists in image but NOT in database
-                                        const cats = Store.get('categories', []);
-                                        const defaultCatId = cats.length > 0 ? cats[0].id : 'MISC';
-                                        
-                                        // Attempt to find name from global database for non-named files
-                                        btn.innerText = `Searching Cloud for ${result}...`;
-                                        const cloudName = await Utils.lookupBarcode(result);
-                                        const finalName = cloudName || (nameWithoutExt.startsWith('img_') || nameWithoutExt.startsWith('image_') || !isNaN(nameWithoutExt) ? `Product ${result}` : nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1));
-
-                                        match = {
-                                            id: Utils.id(),
-                                            name: finalName,
-                                            brand: '',
-                                            barcode: result,
-                                            category_id: defaultCatId,
-                                            price: 0,
-                                            cost: 0,
-                                            stock: 0,
-                                            unit: 'pcs',
-                                            hsn: '',
-                                            batch: '',
-                                            gst_percent: 0,
-                                            image: '' 
-                                        };
-                                        products.push(match);
-                                        console.log(`Auto-created NEW product "${match.name}" via Barcode Scan & Cloud Lookup: ${result}`);
-                                    }
+                        // 1. Scan for Barcode in the picture anyway to "EXTRACT" info
+                        try {
+                            const result = await html5QrCode.scanFile(file, true);
+                            if (result) {
+                                scannedBarcode = result;
+                                // If no match yet, search by extracted barcode
+                                if (!match) match = products.find(p => p.barcode && p.barcode === scannedBarcode);
+                                
+                                // NEW: If we matched by name but barcode was missing/different, EXTRACT IT!
+                                if (match && (!match.barcode || match.barcode === '')) {
+                                    match.barcode = scannedBarcode;
+                                    console.log(`Extracted barcode ${scannedBarcode} and saved to ${match.name}`);
                                 }
-                            } catch (e) { /* No barcode found in image */ }
+                            }
+                        } catch (e) { /* No barcode in image */ }
+
+                        // 2. If STILL no match, auto-create using extracted info
+                        if (!match) {
+                            const cats = Store.get('categories', []);
+                            const defaultCatId = cats.length > 0 ? cats[0].id : 'MISC';
+                            
+                            let finalName = nameWithoutExt.startsWith('img_') || nameWithoutExt.startsWith('image_') || !isNaN(nameWithoutExt) ? null : nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1);
+                            
+                            if (scannedBarcode) {
+                                btn.innerText = `Searching Cloud for ${scannedBarcode}...`;
+                                const cloudName = await Utils.lookupBarcode(scannedBarcode);
+                                if (cloudName) finalName = cloudName;
+                            }
+
+                            // Still no name? USE TEXT EXTRACT (OCR)
+                            if (!finalName || finalName.toLowerCase().startsWith('product')) {
+                                try {
+                                    btn.innerText = `Extracting Text from ${fullName}...`;
+                                    const { data: { text } } = await Tesseract.recognize(file, 'eng');
+                                    if (text && text.trim().length > 3) {
+                                        // Pick first non-empty line as the name
+                                        const cleanText = text.split('\n').map(l => l.trim()).filter(l => l.length > 3)[0];
+                                        if (cleanText) finalName = cleanText;
+                                    }
+                                } catch (e) { console.error("OCR Failed", e); }
+                            }
+
+                            if (!finalName) finalName = scannedBarcode ? `Product ${scannedBarcode}` : `New ${fullName}`;
+
+                            match = {
+                                id: Utils.id(),
+                                name: finalName,
+                                barcode: scannedBarcode || '',
+                                category_id: defaultCatId,
+                                price: 0, cost: 0, stock: 0, unit: 'pcs',
+                                image: '' 
+                            };
+                            products.push(match);
                         }
 
                         if (match) {
