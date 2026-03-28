@@ -1647,68 +1647,69 @@
                 // Cloud Sync
                 if (Store.fbReady && !Store.isSyncing) {
                     if (key.startsWith('fb_')) return;
-                    const db = firebase.database();
-                    const shopId = Store.get('fb_shopid', 'default');
+                    
+                    // Clear any existing sync timeout to debounce (prevents spamming cloud on every keystroke)
+                    if (Store.syncTimeouts && Store.syncTimeouts[key]) clearTimeout(Store.syncTimeouts[key]);
+                    if (!Store.syncTimeouts) Store.syncTimeouts = {};
 
-                    try {
-                        const safeVal = JSON.parse(JSON.stringify(val));
-                        const size = JSON.stringify(safeVal).length;
+                    Store.syncTimeouts[key] = setTimeout(() => {
+                        const db = firebase.database();
+                        const shopId = Store.get('fb_shopid', 'default');
 
-                        // Firebase has a hard 10MB limit per payload via SDK.
-                        // We bypass this for arrays by chunking the data into smaller payloads!
-                        if (size > 8 * 1024 * 1024 && Array.isArray(safeVal)) {
-                            console.warn(`Data for ${key} is large (${(size / 1024 / 1024).toFixed(2)} MB). Chunking upload to bypass 10MB limit...`);
-                            const ref = db.ref(`shops/${shopId}/${key}`);
-                            const batchSize = 25; // Small chunks safely below 10MB
-                            for (let i = 0; i < safeVal.length; i += batchSize) {
-                                const batch = {};
-                                for (let j = i; j < i + batchSize && j < safeVal.length; j++) {
-                                    batch[j] = safeVal[j];
+                        try {
+                            const safeVal = JSON.parse(JSON.stringify(val));
+                            const size = JSON.stringify(safeVal).length;
+
+                            // Chunking logic for large arrays (>5MB)
+                            if (size > 5 * 1024 * 1024 && Array.isArray(safeVal)) {
+                                console.warn(`Data for ${key} is large. Chunking upload...`);
+                                const ref = db.ref(`shops/${shopId}/${key}`);
+                                const batchSize = 500; // Increased from 25 for massive speed boost
+                                for (let i = 0; i < safeVal.length; i += batchSize) {
+                                    const batch = {};
+                                    for (let j = i; j < i + batchSize && j < safeVal.length; j++) {
+                                        batch[j] = safeVal[j];
+                                    }
+                                    ref.update(batch).catch(e => console.error("Chunk error", e));
                                 }
-                                ref.update(batch).catch(e => console.error("Chunk error", e));
+                                // Cleanup old tail entries
+                                const nullBatch = {};
+                                for (let j = safeVal.length; j < safeVal.length + 500; j++) nullBatch[j] = null;
+                                ref.update(nullBatch).catch(e => {});
+                            } else if (size > 10 * 1024 * 1024) {
+                                console.error(`Sync error: Data for ${key} is too large (>10MB).`);
+                                return;
+                            } else {
+                                db.ref(`shops/${shopId}/${key}`).set(safeVal).catch(e => console.error(`Sync Error (${key}):`, e));
                             }
-                            // Purge any lingering tail elements if array shrank
-                            const nullBatch = {};
-                            for (let j = safeVal.length; j < safeVal.length + 500; j++) nullBatch[j] = null;
-                            ref.update(nullBatch).catch(e => {});
-                        } else if (size > 10 * 1024 * 1024) {
-                            console.error(`Sync error: Data for ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Max 10MB.`);
-                            const statusEl = document.getElementById('sync-status');
-                            if (statusEl) statusEl.innerHTML = `Status: <span class="text-danger">⚠️ ${key} too large to sync!</span>`;
-                            return;
-                        } else {
-                            db.ref(`shops/${shopId}/${key}`).set(safeVal).catch(e => {
-                                console.error(`Firebase Set Error (${key}):`, e);
-                                const statusEl = document.getElementById('sync-status');
-                                if (statusEl) statusEl.innerHTML = `Status: <span class="text-warning">Sync Fail: ${key}</span>`;
-                            });
-                        }
-                    } catch (e) {
-                        console.error("Sync Preparation Error:", e);
-                    }
+                        } catch (e) { console.error("Sync Preparation Error:", e); }
+                    }, 1000); // 1-second debounce for stability
                 }
             },
 
             initFirebase: () => {
+                const apiKey = Store.get('fb_apikey');
+                const databaseURL = Store.get('fb_dburl');
+                const projectId = Store.get('fb_projectid');
+
+                // Fallback to default if not configured (optional, or just return)
                 const config = {
-                    apiKey: "AIzaSyC6xsNiKSC0oyCG4QuLdCHKJ0T_9Ae3XgY",
-                    authDomain: "v-billing-id-0001.firebaseapp.com",
-                    databaseURL: "https://v-billing-id-0001-default-rtdb.asia-southeast1.firebasedatabase.app",
-                    projectId: "v-billing-id-0001",
-                    storageBucket: "v-billing-id-0001.firebasestorage.app",
-                    messagingSenderId: "795939440827",
-                    appId: "1:795939440827:web:106152211038bc1e9a419e"
+                    apiKey: apiKey || "AIzaSyC6xsNiKSC0oyCG4QuLdCHKJ0T_9Ae3XgY",
+                    databaseURL: databaseURL || "https://v-billing-id-0001-default-rtdb.asia-southeast1.firebasedatabase.app",
+                    projectId: projectId || "v-billing-id-0001",
+                    appId: Store.get('fb_appid') || "1:795939440827:web:106152211038bc1e9a419e"
                 };
 
                 if (!config.apiKey || !config.databaseURL) return;
+
+                const shopId = Store.get('fb_shopid', 'default');
+                const statusEl = document.getElementById('sync-status');
 
                 try {
                     if (!firebase.apps.length) {
                         firebase.initializeApp(config);
                     }
                     const db = firebase.database();
-                    const shopId = Store.get('fb_shopid', 'default');
-                    const statusEl = document.getElementById('sync-status');
 
                     if (statusEl) statusEl.innerHTML = `Status: <span class="text-primary">Online / Syncing (${shopId})</span>`;
                     Store.fbReady = true;
@@ -1718,21 +1719,34 @@
                     // Real-time listener
                     db.ref(`shops/${shopId}`).on('value', (snapshot) => {
                         const cloudData = snapshot.val();
-                        if (cloudData) {
-                            Store.isSyncing = true; // Prevent loop
+                        if (cloudData && !Store.pushingToCloud) { // Only download if we aren't currently pushing
+                            Store.isSyncing = true;
                             for (let key in cloudData) {
                                 const localVal = Store.get(key, []);
                                 const cloudVal = cloudData[key];
 
-                                // SAFETY CHECK: Don't let an empty cloud wipe existing local data automatically
-                                // This happens if someone logs in on a new device (like a tablet) for the first time
-                                if (Array.isArray(localVal) && localVal.length > 5 && Array.isArray(cloudVal) && cloudVal.length === 0) {
-                                    console.warn(`Protected local ${key} from being emptied by cloud sync.`);
-                                    continue;
-                                }
-
                                 if (JSON.stringify(localVal) !== JSON.stringify(cloudVal)) {
-                                    Store.set(key, cloudVal);
+                                    if (Array.isArray(localVal) && Array.isArray(cloudVal)) {
+                                        // SMART MERGE: Protect local binary images from being overwriten by cloud sync
+                                        const merged = cloudVal.map(cv => {
+                                            const lv = localVal.find(lx => lx.id === cv.id);
+                                            if (lv) {
+                                                // If local has a fresh image capture that hasn't uploaded yet, KEEP IT.
+                                                if (lv.image && lv.image.startsWith('data:image/') && (!cv.image || cv.image === '')) {
+                                                    return { ...cv, image: lv.image };
+                                                }
+                                            }
+                                            return cv;
+                                        });
+                                        Store.cache['cosmatic_' + key] = merged;
+                                    } else {
+                                        Store.cache['cosmatic_' + key] = cloudVal;
+                                    }
+                                    
+                                    if (Store.db) {
+                                        const tx = Store.db.transaction(Store.STORE_NAME, 'readwrite');
+                                        tx.objectStore(Store.STORE_NAME).put(Store.cache['cosmatic_' + key], 'cosmatic_' + key);
+                                    }
                                 }
                             }
                             Store.isSyncing = false;
@@ -1743,7 +1757,7 @@
                             else if (currentView === 'products') App.products.renderTable();
                             else if (currentView === 'categories') App.categories.renderTable();
                             else if (currentView === 'customers') App.customers.renderTable();
-                            else if (currentView === 'reports') App.reports.renderInvoiceTable();
+                            else if (currentView === 'reports') App.reports.render(App.reports.lastRenderType || 'daily', App.reports.lastRenderParam);
                             else if (currentView === 'expenses') App.expenses.renderTable();
                             else if (currentView === 'purchases') App.purchases.renderTable();
                             else if (currentView === 'settings') App.settings.load();
@@ -2138,8 +2152,10 @@
             },
 
             router: {
+                currentView: 'dashboard',
                 navigate: (viewName) => {
                     if (!App.user) return;
+                    App.router.currentView = viewName;
 
                     const restricted = ['dashboard', 'categories', 'reports', 'settings', 'purchases', 'expenses'];
                     if (App.user.role !== 'admin' && restricted.includes(viewName)) {
