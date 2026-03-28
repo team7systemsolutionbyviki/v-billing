@@ -1727,17 +1727,27 @@
 
                                 if (JSON.stringify(localVal) !== JSON.stringify(cloudVal)) {
                                     if (Array.isArray(localVal) && Array.isArray(cloudVal)) {
-                                        // SMART MERGE: Protect local binary images from being overwriten by cloud sync
+                                        // 🌐 BIDIRECTIONAL SMART MERGE: Keep all items from both local and cloud.
+                                        const cloudIds = new Set(cloudVal.map(x => x.id));
+                                        const localIds = new Set(localVal.map(x => x.id));
+
+                                        // Start with Cloud items, but protecting local fresh images
                                         const merged = cloudVal.map(cv => {
                                             const lv = localVal.find(lx => lx.id === cv.id);
                                             if (lv) {
-                                                // If local has a fresh image capture that hasn't uploaded yet, KEEP IT.
+                                                // Keep local base64 if cloud is empty (just captured)
                                                 if (lv.image && lv.image.startsWith('data:image/') && (!cv.image || cv.image === '')) {
                                                     return { ...cv, image: lv.image };
                                                 }
                                             }
                                             return cv;
                                         });
+
+                                        // Add Local-only items (New products not in cloud yet)
+                                        localVal.forEach(lv => {
+                                            if (!cloudIds.has(lv.id)) merged.push(lv);
+                                        });
+
                                         Store.cache['cosmatic_' + key] = merged;
                                     } else {
                                         Store.cache['cosmatic_' + key] = cloudVal;
@@ -1793,64 +1803,30 @@
 
                 const keys = ['products', 'categories', 'customers', 'invoices', 'expenses', 'purchases', 'shop_config', 'login_logs'];
                 const db = firebase.database();
-                let successCount = 0;
-                let totalSize = 0;
+                Store.pushingToCloud = true;
 
+                // 1. Parallel Image Upload (Speedup)
+                const prods = Store.get('products', []);
+                const uploadPromises = prods.map(async (p) => {
+                    if (p.image && typeof p.image === 'string' && p.image.startsWith('data:image/')) {
+                        p.image = await Utils.uploadImageToStorage(p.image, p.id);
+                    }
+                    return p;
+                });
+                await Promise.all(uploadPromises);
+                Store.set('products', prods);
+
+                // 2. Sync all keys
                 for (const key of keys) {
                     try {
-                        let val = Store.get(key, key === 'shop_config' ? {} : []);
+                        const val = Store.get(key, key === 'shop_config' ? {} : []);
                         const safeVal = JSON.parse(JSON.stringify(val));
-
-                        if (key === 'products' && Store.fbReady) {
-                            for (let p of safeVal) {
-                                if (p.image && typeof p.image === 'string' && p.image.startsWith('data:image/')) {
-                                    p.image = await Utils.uploadImageToStorage(p.image, p.id);
-                                    const localMatch = val.find(lp => lp.id === p.id);
-                                    if (localMatch) localMatch.image = p.image;
-                                }
-                            }
-                            Store.cache['cosmatic_products'] = val;
-                            if (Store.db) {
-                                Store.db.transaction(Store.STORE_NAME, 'readwrite').objectStore(Store.STORE_NAME).put(val, 'cosmatic_products');
-                            }
-                        }
-
-                        const size = JSON.stringify(safeVal).length;
-                        totalSize += size;
-
-                        if (size > 8 * 1024 * 1024 && Array.isArray(safeVal)) {
-                            // Bypass 10MB limit by paginating the array into chunks
-                            const ref = db.ref(`shops/${shopId}/${key}`);
-                            const batchSize = 25;
-                            for (let i = 0; i < safeVal.length; i += batchSize) {
-                                const batch = {};
-                                for (let j = i; j < i + batchSize && j < safeVal.length; j++) {
-                                    batch[j] = safeVal[j];
-                                }
-                                await ref.update(batch);
-                            }
-                            const nullBatch = {};
-                            for (let j = safeVal.length; j < safeVal.length + 500; j++) nullBatch[j] = null;
-                            await ref.update(nullBatch);
-                            successCount++;
-                        } else if (size > 10 * 1024 * 1024) {
-                            if (!isSilent) alert(`❌ Error: ${key} is too large (${(size / 1024 / 1024).toFixed(2)} MB). Firebase limit is 10MB per key. Try optimizing images first.`);
-                            continue;
-                        } else {
-                            await db.ref(`shops/${shopId}/${key}`).set(safeVal);
-                            successCount++;
-                        }
-                    } catch (e) {
-                        console.error(`Error syncing ${key}:`, e);
-                    }
+                        await db.ref(`shops/${shopId}/${key}`).set(safeVal);
+                    } catch (e) { console.error(`Sync fail: ${key}`, e); }
                 }
 
-                if (successCount === keys.length) {
-                    if (!isSilent) alert(`✅ Success! Data pushed to cloud (${(totalSize / 1024 / 1024).toFixed(2)} MB total).\nNow refresh the other device to see the changes.`);
-                    else console.log(`Auto-Sync Success: ${(totalSize / 1024 / 1024).toFixed(2)} MB synced at ${new Date().toLocaleTimeString()}`);
-                } else {
-                    if (!isSilent) alert(`⚠️ Sync partially complete. ${successCount}/${keys.length} items synced. Check console for errors.`);
-                }
+                setTimeout(() => Store.pushingToCloud = false, 2000);
+                if (!isSilent) alert("Full Cloud Sync Complete! All data is now online.");
             },
 
             init: () => new Promise((resolve, reject) => {
@@ -2493,7 +2469,11 @@
 
                             return `
                                 <tr style="${isExpired ? 'background-color: var(--danger-light, #fee2e2);' : ''}">
-                                    <td><img src="${p.image || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;background:#f8f9fa" onerror="this.src='https://via.placeholder.com/40'"></td>
+                                    <td style="position:relative;">
+                                        <img src="${p.image || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;background:#f8f9fa" onerror="this.src='https://via.placeholder.com/40'">
+                                        <div style="position:absolute; bottom:5px; right:5px; width:8px; height:8px; border-radius:50%; border:1px solid white; background:${p.image ? (p.image.startsWith('data:') ? '#f59e0b' : '#10b981') : '#cbd5e1'}" 
+                                             title="${p.image ? (p.image.startsWith('data:') ? 'Pending Cloud Upload' : 'Synced to Cloud') : 'No Image'}"></div>
+                                    </td>
                                     <td><div class="text-truncate" style="max-width: 200px;" title="${p.name}">${p.name}</div><small class="text-muted">HSN: ${p.hsn || '-'} | Batch: ${p.batch || '-'}</small></td>
                                 <td>${cat}</td>
                                 <td>${Utils.formatCurrency(p.price)}</td>
