@@ -4,15 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>v-billing</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <title>v-billing Professional</title>
+    <!-- Single-File PWA manifest (Embedded) -->
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogInYtYmlsbGluZyBQcm9mZXNzaW9uYWwiLAogICJzaG9ydF9uYW1lIjogInYtYmlsbGluZyIsCiAgInN0YXJ0X3VybCI6ICJpbmRleC5odG1sIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwKICAidGhlbWVfY29sb3IiOiAiIzFlNGQyYiIKfQ==">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e4d2b">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-storage-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js" crossorigin="anonymous"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -617,11 +622,14 @@
 
     <!-- Login View -->
     <div id="login-view">
-        <div class="card login-card">
+        <div class="card login-card" style="padding: 2.5rem;">
             <div class="text-center" style="margin-bottom: 2rem;">
-                <h1 class="text-2xl font-bold text-primary">v-billing</h1>
-                <p class="text-muted">Shop Billing System</p>
-                <div id="login-msg" class="text-muted text-xs">Login with your PIN. (For Super Admin, use 🖊️)</div>
+                <div style="background: var(--primary); padding: 12px; border-radius: 16px; box-shadow: var(--shadow-lg); width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; transform: rotate(-5deg);">
+                    <span style="color: white; font-size: 32px; font-weight: 900;">V</span>
+                </div>
+                <h1 class="text-3xl font-extrabold text-primary">v-billing</h1>
+                <p class="text-muted">Premium Retail Solution</p>
+                <div id="login-msg" class="text-muted text-xs mt-2">Professional Billing & Inventory System</div>
             </div>
             <form id="login-form" class="flex flex-col gap-4">
                 <div>
@@ -660,40 +668,43 @@
 
         <!-- Sidebar -->
         <aside id="sidebar">
-            <div class="sidebar-header">
+            <div class="sidebar-header" style="padding: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <div style="background: var(--primary); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 1.25rem;">V</div>
                 <h2 class="text-xl font-bold text-primary">v-billing</h2>
             </div>
-            <nav class="flex flex-col flex-1 p-2 gap-2">
+            <nav class="flex flex-col flex-1 p-2 gap-1">
                 <a class="nav-item" data-view="dashboard" onclick="App.router.navigate('dashboard')">
-                    <span>📊</span> Dashboard
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
                 </a>
                 <a class="nav-item" data-view="pos" onclick="App.router.navigate('pos')">
-                    <span>🛒</span> Billing / POS
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Billing / POS
                 </a>
                 <a class="nav-item" data-view="products" onclick="App.router.navigate('products')">
-                    <span>🧴</span> Products
+                    <i data-lucide="package" class="w-5 h-5"></i> Products
                 </a>
                 <a class="nav-item" data-view="categories" onclick="App.router.navigate('categories')">
-                    <span>🏷️</span> Categories
+                    <i data-lucide="tag" class="w-5 h-5"></i> Categories
                 </a>
                 <a class="nav-item" data-view="customers" onclick="App.router.navigate('customers')">
-                    <span>👥</span> Customers
+                    <i data-lucide="users" class="w-5 h-5"></i> Customers
                 </a>
                 <a class="nav-item" data-view="purchases" onclick="App.router.navigate('purchases')">
-                    <span>📦</span> Purchases
+                    <i data-lucide="truck" class="w-5 h-5"></i> Purchases
                 </a>
                 <a class="nav-item" data-view="reports" onclick="App.router.navigate('reports')">
-                    <span>📈</span> Reports
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Reports
                 </a>
                 <a class="nav-item" data-view="expenses" onclick="App.router.navigate('expenses')">
-                    <span>💸</span> Expenses
+                    <i data-lucide="credit-card" class="w-5 h-5"></i> Expenses
                 </a>
+                
                 <div style="flex:1"></div>
+                
                 <a class="nav-item" data-view="settings" onclick="App.router.navigate('settings')">
-                    <span>⚙️</span> Settings
+                    <i data-lucide="settings" class="w-5 h-5"></i> Settings
                 </a>
-                <a class="nav-item text-danger" onclick="App.auth.logout()">
-                    <span>🚪</span> Logout
+                <a class="nav-item text-danger" onclick="App.auth.logout()" style="color: var(--danger);">
+                    <i data-lucide="log-out" class="w-5 h-5"></i> Logout
                 </a>
             </nav>
         </aside>
@@ -1084,9 +1095,18 @@
                             <input type="text" id="pur-supplier" class="input" placeholder="Supplier Company Phase">
                         </div>
                         
-                        <div class="flex items-center justify-between mt-2">
-                            <label class="font-bold">Items</label>
-                            <button id="pur-add-item-btn" class="btn btn-sm btn-primary" onclick="App.purchases.addItemRow()">+ Add Item</button>
+                        <div class="flex flex-col gap-2 mt-2" style="position: relative;">
+                            <div class="flex items-center justify-between">
+                                <label class="font-bold">Add Items to Purchase</label>
+                                <button id="pur-add-item-btn" class="btn btn-sm" onclick="App.purchases.addItemRow()" style="background:var(--primary-light); color:var(--primary); font-size: 0.75rem;">+ Manual Row</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="pur-prod-search" class="input flex-1" placeholder="Type product name or scan barcode..." onkeyup="App.purchases.renderSearch()">
+                                <select id="pur-prod-cat" class="input" style="width:130px" onchange="App.purchases.renderSearch()">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div id="pur-search-results" class="hidden absolute bg-white border rounded shadow-xl max-h-60 overflow-y-auto w-full" style="top: 100%; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);"></div>
                         </div>
                         <div class="flex gap-2 px-2 text-xs font-bold text-muted">
                             <div class="flex-1">Product</div>
@@ -1933,6 +1953,9 @@
                     Store.initFirebase();
                     await App.auth.check();
                     App.ui.init();
+                    
+                    // Initialize Icons
+                    if (window.lucide) lucide.createIcons();
                 } catch (e) {
                     alert("Init Error: " + e.message);
                 }
@@ -2107,9 +2130,35 @@
                     // 3. Optional Backup (Non-blocking)
                     try { App.settings.backup(); } catch(e){}
 
-                    // 4. Final Logout
+                    // 4. Send Logout Report to Admin
+                    try { App.auth.sendLogoutReport(); } catch(e){ console.error("Report fail", e); }
+
+                    // 5. Final Logout
                     sessionStorage.removeItem('cosmatic_session');
-                    setTimeout(() => location.reload(), 500); // Small delay to show overlay
+                    setTimeout(() => location.reload(), 1500); // Increased delay for report triggering
+                },
+                sendLogoutReport: () => {
+                    const invoices = Store.get('invoices', []);
+                    const today = Utils.dateStr();
+                    const dailyInvs = invoices.filter(i => i.date.startsWith(today));
+                    
+                    const totalSales = dailyInvs.reduce((s, i) => s + (i.total || 0), 0);
+                    const totalCash = dailyInvs.filter(i => i.payment_mode === 'Cash').reduce((s, i) => s + (i.total || 0), 0);
+                    const totalUPI = dailyInvs.filter(i => i.payment_mode === 'UPI').reduce((s, i) => s + (i.total || 0), 0);
+
+                    const shopName = Store.get('shop_config', {}).name || 'v-billing';
+                    const userName = App.user ? App.user.name : 'Unknown';
+
+                    const msg = `*Logout Report - ${shopName}*\n` +
+                                `*Date:* ${today}\n` +
+                                `*Staff:* ${userName}\n\n` +
+                                `*Total Sales:* ${Utils.formatCurrency(totalSales)}\n` +
+                                `*Cash Collection:* ${Utils.formatCurrency(totalCash)}\n` +
+                                `*UPI / GPay:* ${Utils.formatCurrency(totalUPI)}\n\n` +
+                                `_Logged out at: ${new Date().toLocaleTimeString()}_`;
+
+                    const url = `https://wa.me/919942915379?text=${encodeURIComponent(msg)}`;
+                    window.open(url, '_blank');
                 },
                 googleLogin: async () => {
                     try {
@@ -2750,28 +2799,46 @@
                     }
                 },
                 exportExcel: () => {
-                    const products = Store.get('products', []);
-                    const cats = Store.get('categories', []);
+                    try {
+                        if (typeof XLSX === 'undefined') {
+                            alert("Excel library (XLSX) is not loaded correctly. Please check your internet connection.");
+                            return;
+                        }
 
-                    const data = products.map(p => ({
-                        'Name': p.name,
-                        'Brand': p.brand,
-                        'Category': cats.find(c => c.id === p.category_id)?.name || '',
-                        'Unit': p.unit || 'pcs',
-                        'Barcode': p.barcode || '',
-                        'HSN Code': p.hsn || '',
-                        'Batch Code': p.batch || '',
-                        'Cost Price': p.cost || 0,
-                        'Selling Price': p.price || 0,
-                        'GST %': p.gst_percent || 0,
-                        'Stock': p.stock || 0,
-                        'Expiry Date': p.expiry || ''
-                    }));
+                        const products = Store.get('products', []);
+                        const cats = Store.get('categories', []);
 
-                    const worksheet = XLSX.utils.json_to_sheet(data);
-                    const workbook = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
-                    XLSX.writeFile(workbook, "Products_Report_" + Utils.dateStr() + ".xlsx");
+                        if (products.length === 0) {
+                            alert("No products found to export.");
+                            return;
+                        }
+
+                        const data = products.map(p => ({
+                            'Name': p.name,
+                            'Brand': p.brand,
+                            'Category': cats.find(c => c.id === p.category_id)?.name || '',
+                            'Unit': p.unit || 'pcs',
+                            'Barcode': p.barcode || '',
+                            'HSN Code': p.hsn || '',
+                            'Batch Code': p.batch || '',
+                            'Cost Price': p.cost || 0,
+                            'Selling Price': p.price || 0,
+                            'GST %': p.gst_percent || 0,
+                            'Stock': p.stock || 0,
+                            'Expiry Date': p.expiry || '',
+                            'Image Source': (p.image || '').length > 32000 ? (p.image.substring(0, 32000) + " (TRUNCATED)") : (p.image || '')
+                        }));
+
+                        const worksheet = XLSX.utils.json_to_sheet(data);
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+                        
+                        const fileName = "Products_Report_" + Utils.dateStr() + ".xlsx";
+                        XLSX.writeFile(workbook, fileName);
+                    } catch (err) {
+                        console.error("Export Error Detail:", err);
+                        alert("Export Failed: " + (err.message || "Unknown error"));
+                    }
                 },
                 importExcel: (input) => {
                     const file = input.files[0];
@@ -2829,12 +2896,12 @@
                                         return 'pcs';
                                     })(),
                                     barcode: String(row['Barcode'] || ''),
-                                    cost: parseFloat(row['Cost Price'] || 0),
-                                    price: parseFloat(row['Selling Price'] || row['Price'] || 0),
-                                    gst_percent: parseFloat(row['GST %'] || 0),
+                                    cost: parseFloat(row['Cost Price'] || row['cost'] || row['Cost'] || 0),
+                                    price: parseFloat(row['Selling Price'] || row['price'] || row['Price'] || 0),
+                                    gst_percent: parseFloat(row['GST %'] || row['gst_percent'] || row['GST'] || 0),
                                     stock: parseInt(row['Stock'] || 0),
                                     expiry: row['Expiry Date'] || '',
-                                    image: ''
+                                    image: row['Image Source'] || row['Image'] || ''
                                 };
 
                                 const existingIdx = products.findIndex(p => p.name.toLowerCase() === newProd.name.toLowerCase());
@@ -3576,7 +3643,42 @@
                     document.body.classList.remove('print-receipt-mode');
                 },
                 sendWhatsAppBill: (inv) => {
-                    if (!inv || !inv.customer_phone) {
+                    const config = Store.get('shop_config', {});
+                    
+                    // Handle manual call from cart panel (passed with no args)
+                    if (!inv) {
+                        const phone = (document.getElementById('cart-customer-whatsapp')?.value || '').trim();
+                        if (!phone) {
+                            alert("Please enter a WhatsApp number in the cart section.");
+                            return;
+                        }
+                        if (App.pos.cart.length === 0) {
+                            alert("Your cart is empty.");
+                            return;
+                        }
+
+                        // Calculate totals for draft bill
+                        let subtotal = 0, tax = 0;
+                        App.pos.cart.forEach(item => {
+                            const itemTotal = item.price * item.qty;
+                            subtotal += itemTotal;
+                            tax += itemTotal * ((item.gst_percent || config.gst_default || 0) / 100);
+                        });
+
+                        inv = {
+                            customer_name: (document.getElementById('cart-customer-name')?.value || '').trim() || 'Customer',
+                            customer_phone: phone,
+                            items: JSON.parse(JSON.stringify(App.pos.cart)),
+                            subtotal: subtotal,
+                            tax: tax,
+                            discount: App.pos.calculatedDiscount || 0,
+                            total: subtotal + tax - (App.pos.calculatedDiscount || 0),
+                            invoice_no: 'DRAFT',
+                            date: Utils.dateTimeStr()
+                        };
+                    }
+
+                    if (!inv.customer_phone) {
                         console.warn("No valid phone number for WhatsApp message");
                         return;
                     }
@@ -3585,21 +3687,25 @@
                     let formattedPhone = phone.replace(/\D/g, '');
                     if (formattedPhone.length === 10) formattedPhone = '91' + formattedPhone;
 
-                    const config = Store.get('shop_config', {});
-                    let itemsText = inv.items.map(item => {
-                        return `${item.name} - ${item.qty} x ${Utils.formatCurrency(item.price)}`;
-                    }).join('%0A');
+                    let itemsText = inv.items.map((item, idx) => {
+                        const lineTotal = item.price * item.qty;
+                        return `${idx + 1}. ${item.name}\n   ${item.qty} x ${item.price.toFixed(2)} = ${lineTotal.toFixed(2)}`;
+                    }).join('\n');
 
-                    let message = `Hello ${inv.customer_name || 'Customer'},%0A%0AHere is your bill from ${config.name || 'v-billing'}:%0A%0A${itemsText}%0A%0A---------------%0ASubtotal: ${Utils.formatCurrency(inv.subtotal)}`;
-                    if (inv.discount > 0) message += `%0ADiscount: -${Utils.formatCurrency(inv.discount)}`;
-                    if (inv.tax > 0) message += `%0ATax: ${Utils.formatCurrency(inv.tax)}`;
-                    message += `%0ATotal: ${Utils.formatCurrency(inv.total)}%0A%0AThank you for shopping with us!`;
+                    let message = `Hello ${inv.customer_name || 'Customer'},\n\n`;
+                    message += `*Invoice from ${config.name || 'v-billing'}*\n`;
+                    if (inv.invoice_no) message += `No: ${inv.invoice_no}\n`;
+                    message += `Date: ${inv.date ? inv.date.substring(0, 16) : Utils.dateTimeStr()}\n\n`;
+                    message += `*Items:*\n${itemsText}\n`;
+                    message += `\n----------------------\n`;
+                    message += `Subtotal: ${Utils.formatCurrency(inv.subtotal)}\n`;
+                    if (inv.discount > 0) message += `Discount: -${Utils.formatCurrency(inv.discount)}\n`;
+                    if (inv.tax > 0) message += `Tax: ${Utils.formatCurrency(inv.tax)}\n`;
+                    message += `*Total: ${Utils.formatCurrency(inv.total)}*\n\n`;
+                    message += config.footer || 'Thank you for shopping with us!';
 
-                    const url = `https://wa.me/${formattedPhone}?text=${message}`;
-                    const a = document.createElement('a');
-                    a.target = '_blank';
-                    a.href = url;
-                    a.click();
+                    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+                    window.open(url, '_blank');
                 }
             },
 
@@ -3903,12 +4009,15 @@
                     if (prods.length === 0) return alert("No products to export");
 
                     // Header
-                    const headers = ["id", "name", "category_id", "barcode", "hsn", "batch", "cost", "price", "stock", "gst_percent"];
+                    const headers = ["id", "name", "category_id", "barcode", "hsn", "batch", "cost", "price", "stock", "gst_percent", "image"];
                     const csv = [headers.join(',')];
 
                     prods.forEach(p => {
                         const row = headers.map(h => {
                             let val = p[h] || '';
+                            if (h === 'image' && typeof val === 'string' && val.length > 32000) {
+                                val = val.substring(0, 32000) + " (TRUNCATED)";
+                            }
                             if (typeof val === 'string' && val.includes(',')) val = `"${val}"`;
                             return val;
                         });
@@ -3937,11 +4046,11 @@
                                 const p = {};
                                 headers.forEach((h, idx) => p[h] = cols[idx]?.trim());
 
-                                if (p.name && p.price) {
-                                    p.price = parseFloat(p.price);
-                                    p.cost = parseFloat(p.cost) || 0;
-                                    p.stock = parseInt(p.stock) || 0;
-                                    p.gst_percent = parseFloat(p.gst_percent) || 0;
+                                if (p.name && (p.price || p.Price || p['Selling Price'])) {
+                                    p.price = parseFloat(p.price || p.Price || p['Selling Price'] || 0);
+                                    p.cost = parseFloat(p.cost || p.Cost || p['Cost Price'] || 0);
+                                    p.stock = parseInt(p.stock || p.Stock || 0);
+                                    p.gst_percent = parseFloat(p.gst_percent || p['GST %'] || 0);
                                     if (!p.id) p.id = Utils.id();
 
                                     // Update or Add
@@ -3998,6 +4107,13 @@
                     document.getElementById('pur-bill').value = '';
                     document.getElementById('pur-supplier').value = '';
                     document.getElementById('pur-total').value = '0.00';
+                    document.getElementById('pur-prod-search').value = '';
+                    document.getElementById('pur-search-results').classList.add('hidden');
+                    
+                    // Fill category filter
+                    const cats = Store.get('categories', []);
+                    document.getElementById('pur-prod-cat').innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    
                     App.purchases.tempItems = [];
                     App.purchases.renderItems();
                     document.getElementById('modal-purchase').setAttribute('data-mode', 'add');
@@ -4008,6 +4124,57 @@
                 },
                 closeModal: () => {
                     App.router.hideModal('modal-purchase');
+                },
+                renderSearch: () => {
+                    const search = document.getElementById('pur-prod-search').value.toLowerCase();
+                    const catId = document.getElementById('pur-prod-cat').value;
+                    const resultsEl = document.getElementById('pur-search-results');
+                    
+                    if (!search && !catId) {
+                        resultsEl.classList.add('hidden');
+                        return;
+                    }
+
+                    const prods = Store.get('products', []);
+                    const matches = prods.filter(p => {
+                        const matchSearch = p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search));
+                        const matchCat = !catId || p.category_id === catId;
+                        return matchSearch && matchCat;
+                    }).slice(0, 15);
+
+                    if (matches.length === 0) {
+                        resultsEl.innerHTML = `
+                            <div class="p-4 text-center">
+                                <p class="text-muted text-sm mb-2">No products found.</p>
+                                <button class="btn btn-sm btn-primary" onclick="App.products.openModal()">+ Create New Product</button>
+                            </div>`;
+                    } else {
+                        resultsEl.innerHTML = matches.map(p => `
+                            <div class="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b last:border-0" onclick="App.purchases.addProductToPur('${p.id}')">
+                                <div>
+                                    <div class="font-bold text-sm">${p.name}</div>
+                                    <div class="text-xs text-muted">Stock: ${p.stock} | ${p.barcode || 'No Barcode'}</div>
+                                </div>
+                                <div class="text-primary font-bold">${Utils.formatCurrency(p.cost || 0)}</div>
+                            </div>
+                        `).join('');
+                    }
+                    resultsEl.classList.remove('hidden');
+                },
+                addProductToPur: (pid) => {
+                    const p = Store.get('products', []).find(x => x.id === pid);
+                    if (!p) return;
+                    
+                    // Avoid duplicate if wanted, or just add new row
+                    App.purchases.tempItems.push({ product_id: p.id, qty: 1, cost: p.cost || 0 });
+                    
+                    document.getElementById('pur-prod-search').value = '';
+                    document.getElementById('pur-search-results').classList.add('hidden');
+                    App.purchases.renderItems();
+                    
+                    // Scroll container to bottom
+                    const container = document.getElementById('pur-items-container');
+                    if(container) container.scrollTop = container.scrollHeight;
                 },
                 addItemRow: () => {
                     App.purchases.tempItems.push({ product_id: '', qty: 1, cost: 0 });
