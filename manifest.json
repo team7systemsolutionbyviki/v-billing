@@ -1,0 +1,24 @@
+{
+  "name": "v-billing Professional",
+  "short_name": "v-billing",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e4d2b",
+  "description": "Premium Retail Billing and Inventory Management System",
+  "icons": [
+    {
+      "src": "logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "any",
+  "categories": ["business", "finance"]
+}
