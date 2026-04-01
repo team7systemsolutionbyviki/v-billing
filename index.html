@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>v-billing Professional</title>
-    <!-- Single-File PWA manifest (Embedded) -->
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogInYtYmlsbGluZyBQcm9mZXNzaW9uYWwiLAogICJzaG9ydF9uYW1lIjogInYtYmlsbGluZyIsCiAgInN0YXJ0X3VybCI6ICJpbmRleC5odG1sIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwKICAidGhlbWVfY29sb3IiOiAiIzFlNGQyYiIKfQ==">
+    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1e4d2b">
@@ -1956,6 +1955,16 @@
                     
                     // Initialize Icons
                     if (window.lucide) lucide.createIcons();
+
+                    // Register Service Worker
+                    if ('serviceWorker' in navigator) {
+                        try {
+                            await navigator.serviceWorker.register('sw.js');
+                            console.log("PWA: Service Worker Registered");
+                        } catch (e) {
+                            console.error("PWA: Service Worker Failed", e);
+                        }
+                    }
                 } catch (e) {
                     alert("Init Error: " + e.message);
                 }
